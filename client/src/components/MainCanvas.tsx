@@ -15,7 +15,7 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import PromptLibrary from './PromptLibrary';
 import ImageViewer from './ImageViewer';
-import type { GeneratedImage } from '@/lib/store';
+import { resolveRequestFormat, type GeneratedImage } from '@/lib/store';
 
 const EMPTY_STATE_URL = 'https://private-us-east-1.manuscdn.com/sessionFile/yePiFU8GjRdBGPYX8liEt4/sandbox/tLQ6zULlYtQGokogVvqybz_1771829362991_na1fn_ZW1wdHktc3RhdGU.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUveWVQaUZVOEdqUmRCR1BZWDhsaUV0NC9zYW5kYm94L3RMUTZ6VUxsWXRRR29rb2dWdnF5YnpfMTc3MTgyOTM2Mjk5MV9uYTFmbl9aVzF3ZEhrdGMzUmhkR1UucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=YPNFRU2L4IApJUXQNRJrSjClQBUbLs7IoJTPHEdxje-WhPA5tAcPrqsgKtC2WelCvboHWrN~dio3MPLf23~YMgTeRttzg9M1YlM7Tg5UNu4XV-r6rkxehFmEayIyYIuEVwjr2RUTwpZJvm0~MbRwsVm3DYRV-lnAO-SMN2OgOViRQ7enUwqpJhvDhDlY~IqxsgvtiUx-N4QgYi8YVjdfhq5QX57-w5z3TX46dCTGQEHbKzR-uf6w15Qevc4XkIS9LnSXYO7zUo3AOsA-Wem2DEJIU41Cea-jdwcosqkRqVf69TpdyjxIiV~KLLu9K~ZUpL~pnTVzemyNmxkX-HjmlQ__';
 
@@ -69,6 +69,7 @@ export default function MainCanvas() {
   };
 
   const recentImages = gallery.slice(0, 20);
+  const requestFormat = activeConfig ? resolveRequestFormat(activeConfig) : null;
 
   return (
     <div
@@ -347,9 +348,9 @@ export default function MainCanvas() {
                 )}
               </span>
               <span className="text-[10px] text-muted-foreground/40 font-mono">
-                {activeConfig?.format === 'gemini'
+                {requestFormat === 'gemini'
                   ? `${params.aspectRatio === 'auto' ? 'auto' : params.aspectRatio === 'custom' ? `${Math.max(1, params.customAspectRatioWidth)}:${Math.max(1, params.customAspectRatioHeight)}` : params.aspectRatio} | ${params.imageSize} | ${params.responseModalities === 'IMAGE_ONLY' ? '仅图片' : '文本+图片'}`
-                  : activeConfig?.format === 'openai'
+                  : requestFormat === 'openai'
                   ? `${params.openaiSize} | ${params.openaiQuality} | n=${params.openaiN}`
                   : `${params.width}x${params.height} | ${params.steps}步 | ${params.sampler}`
                 }
