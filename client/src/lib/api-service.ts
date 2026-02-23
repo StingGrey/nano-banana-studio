@@ -1,99 +1,218 @@
 /**
  * API Service: Kawaii Bubble Pop Design — Nano Banana Studio
- * Handles image generation API calls for OpenAI, Gemini, and Claude formats
+ * 
+ * 严格按照各平台官方文档构建 API 请求：
+ * 
+ * Gemini API:
+ *   端点: POST /models/{model}:generateContent
+ *   认证: x-goog-api-key header 或 ?key= query param
+ *   文档: https://ai.google.dev/gemini-api/docs/image-generation
+ * 
+ * OpenAI API:
+ *   端点: POST /images/generations
+ *   认证: Authorization: Bearer {key}
+ *   文档: https://developers.openai.com/api/docs/guides/image-generation
+ * 
+ * Claude API (兼容格式):
+ *   端点: POST /messages
+ *   认证: x-api-key header + anthropic-version
+ *   文档: https://docs.anthropic.com/en/docs/build-with-claude/vision
  */
 
 import type { ApiConfig, GenerationParams } from './store';
 
 export interface GenerationResult {
   success: boolean;
-  images: string[]; // base64 or URLs
+  images: string[]; // base64 data URLs
   error?: string;
   metadata?: Record<string, unknown>;
+  revisedPrompt?: string;
 }
 
-/**
- * Build request body based on API format
- */
-function buildOpenAIRequest(params: GenerationParams, config: ApiConfig) {
-  return {
-    model: config.model || 'nano-banana-pro',
-    prompt: params.prompt,
-    n: params.batchSize,
-    size: `${params.width}x${params.height}`,
-    quality: params.quality === 'ultra' ? 'hd' : 'standard',
-    style: params.style !== 'none' ? params.style : undefined,
-    response_format: 'b64_json',
-    // Extended params for Nano Banana Pro
-    ...(params.negativePrompt && { negative_prompt: params.negativePrompt }),
-    ...(params.seed >= 0 && { seed: params.seed }),
-    ...(params.steps && { steps: params.steps }),
-    ...(params.cfgScale && { cfg_scale: params.cfgScale }),
-    ...(params.sampler && { sampler: params.sampler }),
-    ...params.customParams,
+// ============================================================
+// 构建提示词（将风格预设融入提示词）
+// ============================================================
+function buildPromptWithStyle(params: GenerationParams): string {
+  const styleMap: Record<string, string> = {
+    'anime': 'anime style, ',
+    'photorealistic': 'photorealistic, highly detailed, ',
+    'digital-art': 'digital art style, ',
+    'oil-painting': 'oil painting style, ',
+    'watercolor': 'watercolor painting style, ',
+    'pixel-art': 'pixel art style, ',
+    'comic': 'comic book style, ',
+    '3d-render': '3D rendered, ',
+    'sketch': 'pencil sketch style, ',
+    'fantasy': 'fantasy art style, ',
+    'cyberpunk': 'cyberpunk style, neon lights, ',
+    'minimalist': 'minimalist style, clean composition, ',
+    'surreal': 'surrealist art style, ',
+    'vintage': 'vintage retro style, ',
+    'pop-art': 'pop art style, bold colors, ',
   };
+  const prefix = params.style !== 'none' ? (styleMap[params.style] || '') : '';
+  return prefix + params.prompt;
 }
 
+// ============================================================
+// Gemini API - 严格按照官方文档
+// ============================================================
 function buildGeminiRequest(params: GenerationParams, config: ApiConfig) {
-  return {
+  const prompt = buildPromptWithStyle(params);
+
+  // 基础请求体
+  const body: any = {
     contents: [
       {
-        parts: [
-          {
-            text: params.prompt,
-          },
-        ],
+        parts: [{ text: prompt }],
       },
     ],
     generationConfig: {
-      responseModalities: ['IMAGE', 'TEXT'],
-      imageDimensions: {
-        width: params.width,
-        height: params.height,
-      },
+      // 响应模态
+      responseModalities: params.responseModalities === 'IMAGE_ONLY'
+        ? ['IMAGE']
+        : ['TEXT', 'IMAGE'],
     },
-    model: config.model || 'nano-banana-pro',
-    // Extended params
-    safetySettings: [],
-    ...(params.negativePrompt && {
-      systemInstruction: {
-        parts: [{ text: `Negative prompt: ${params.negativePrompt}` }],
-      },
-    }),
-    // Custom params
-    ...params.customParams,
   };
+
+  // imageConfig（官方参数）
+  const imageConfig: any = {};
+
+  // aspectRatio - 所有 Gemini 图片模型都支持
+  if (params.aspectRatio && params.aspectRatio !== '1:1') {
+    imageConfig.aspectRatio = params.aspectRatio;
+  }
+
+  // imageSize - 仅 gemini-3-pro-image-preview 支持，必须大写 K
+  const model = config.model || 'gemini-3-pro-image-preview';
+  if (model.includes('gemini-3') || model.includes('pro-image')) {
+    if (params.imageSize && params.imageSize !== '1K') {
+      imageConfig.imageSize = params.imageSize; // "1K", "2K", "4K"
+    }
+  }
+
+  if (Object.keys(imageConfig).length > 0) {
+    body.generationConfig.imageConfig = imageConfig;
+  }
+
+  // 反向提示词通过 systemInstruction 传递
+  if (params.negativePrompt) {
+    body.systemInstruction = {
+      parts: [{ text: `Avoid generating: ${params.negativePrompt}` }],
+    };
+  }
+
+  // 自定义参数直接合并到请求体
+  if (Object.keys(params.customParams).length > 0) {
+    // 解析自定义参数，支持嵌套路径如 "generationConfig.temperature"
+    for (const [key, val] of Object.entries(params.customParams)) {
+      const keys = key.split('.');
+      let target = body;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!target[keys[i]]) target[keys[i]] = {};
+        target = target[keys[i]];
+      }
+      // 尝试解析为 JSON 值
+      try {
+        target[keys[keys.length - 1]] = JSON.parse(val);
+      } catch {
+        target[keys[keys.length - 1]] = val;
+      }
+    }
+  }
+
+  return body;
 }
 
+// ============================================================
+// OpenAI API - 严格按照官方文档
+// ============================================================
+function buildOpenAIRequest(params: GenerationParams, config: ApiConfig) {
+  const prompt = buildPromptWithStyle(params);
+
+  const body: any = {
+    model: config.model || 'gpt-image-1',
+    prompt: prompt,
+    n: params.openaiN || 1,
+    size: params.openaiSize || '1024x1024',
+    quality: params.openaiQuality || 'auto',
+    response_format: 'b64_json',
+  };
+
+  // background 参数
+  if (params.openaiBackground && params.openaiBackground !== 'auto') {
+    body.background = params.openaiBackground;
+  }
+
+  // output_format 参数
+  if (params.openaiOutputFormat && params.openaiOutputFormat !== 'png') {
+    body.output_format = params.openaiOutputFormat;
+  }
+
+  // output_compression（仅 jpeg/webp）
+  if ((params.openaiOutputFormat === 'jpeg' || params.openaiOutputFormat === 'webp')
+    && params.openaiOutputCompression < 100) {
+    body.output_compression = params.openaiOutputCompression;
+  }
+
+  // moderation
+  if (params.openaiModeration && params.openaiModeration !== 'auto') {
+    body.moderation = params.openaiModeration;
+  }
+
+  // 自定义参数
+  for (const [key, val] of Object.entries(params.customParams)) {
+    try {
+      body[key] = JSON.parse(val);
+    } catch {
+      body[key] = val;
+    }
+  }
+
+  return body;
+}
+
+// ============================================================
+// Claude API (兼容格式) - 用于第三方兼容服务
+// ============================================================
 function buildClaudeRequest(params: GenerationParams, config: ApiConfig) {
-  return {
-    model: config.model || 'nano-banana-pro',
+  const prompt = buildPromptWithStyle(params);
+
+  // Claude 本身不是图片生成模型，但一些第三方服务使用 Claude 格式
+  // 将图片生成参数编码到消息中
+  let messageText = prompt;
+  if (params.negativePrompt) {
+    messageText += `\n\n[Negative: ${params.negativePrompt}]`;
+  }
+
+  const body: any = {
+    model: config.model || 'claude-3-opus-20240229',
     max_tokens: 4096,
     messages: [
       {
         role: 'user',
         content: [
-          {
-            type: 'text',
-            text: `Generate an image with the following specifications:\n\nPrompt: ${params.prompt}${params.negativePrompt ? `\nNegative Prompt: ${params.negativePrompt}` : ''}\nSize: ${params.width}x${params.height}\nStyle: ${params.style}\nQuality: ${params.quality}`,
-          },
+          { type: 'text', text: messageText },
         ],
       },
     ],
-    metadata: {
-      image_generation: true,
-      width: params.width,
-      height: params.height,
-      steps: params.steps,
-      cfg_scale: params.cfgScale,
-      seed: params.seed,
-      sampler: params.sampler,
-      batch_size: params.batchSize,
-      ...params.customParams,
-    },
   };
+
+  // 自定义参数
+  for (const [key, val] of Object.entries(params.customParams)) {
+    try {
+      body[key] = JSON.parse(val);
+    } catch {
+      body[key] = val;
+    }
+  }
+
+  return body;
 }
 
+// ============================================================
+// 请求头
+// ============================================================
 function getHeaders(config: ApiConfig): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -104,7 +223,7 @@ function getHeaders(config: ApiConfig): Record<string, string> {
       headers['Authorization'] = `Bearer ${config.apiKey}`;
       break;
     case 'gemini':
-      // Gemini uses API key as query param, but also supports header
+      // Gemini 同时支持 header 和 query param 认证
       headers['x-goog-api-key'] = config.apiKey;
       break;
     case 'claude':
@@ -116,37 +235,52 @@ function getHeaders(config: ApiConfig): Record<string, string> {
   return headers;
 }
 
+// ============================================================
+// 端点 URL
+// ============================================================
 function getEndpoint(config: ApiConfig): string {
   const base = config.baseUrl.replace(/\/$/, '');
 
   switch (config.format) {
     case 'openai':
+      // POST /v1/images/generations
       return `${base}/images/generations`;
     case 'gemini':
-      return `${base}/models/${config.model || 'nano-banana-pro'}:generateContent?key=${config.apiKey}`;
+      // POST /v1beta/models/{model}:generateContent?key={apiKey}
+      // 注意：如果 base 已经包含 /v1beta 则不重复添加
+      return `${base}/models/${config.model || 'gemini-3-pro-image-preview'}:generateContent?key=${config.apiKey}`;
     case 'claude':
+      // POST /v1/messages
       return `${base}/messages`;
     default:
       return base;
   }
 }
 
-/**
- * Extract images from API response based on format
- */
-function extractImages(data: any, format: ApiConfig['format']): string[] {
+// ============================================================
+// 从响应中提取图片
+// ============================================================
+function extractImages(data: any, format: ApiConfig['format']): { images: string[]; revisedPrompt?: string } {
   try {
     switch (format) {
       case 'openai': {
+        const images: string[] = [];
+        let revisedPrompt: string | undefined;
         if (data.data) {
-          return data.data.map((item: any) => {
-            if (item.b64_json) return `data:image/png;base64,${item.b64_json}`;
-            if (item.url) return item.url;
-            return '';
-          }).filter(Boolean);
+          for (const item of data.data) {
+            if (item.b64_json) {
+              images.push(`data:image/png;base64,${item.b64_json}`);
+            } else if (item.url) {
+              images.push(item.url);
+            }
+            if (item.revised_prompt && !revisedPrompt) {
+              revisedPrompt = item.revised_prompt;
+            }
+          }
         }
-        return [];
+        return { images, revisedPrompt };
       }
+
       case 'gemini': {
         const images: string[] = [];
         if (data.candidates) {
@@ -160,30 +294,32 @@ function extractImages(data: any, format: ApiConfig['format']): string[] {
             }
           }
         }
-        return images;
+        return { images };
       }
+
       case 'claude': {
-        const imgs: string[] = [];
+        const images: string[] = [];
         if (data.content) {
           for (const block of data.content) {
             if (block.type === 'image') {
-              imgs.push(`data:${block.source.media_type};base64,${block.source.data}`);
+              images.push(`data:${block.source.media_type};base64,${block.source.data}`);
             }
           }
         }
-        return imgs;
+        return { images };
       }
+
       default:
-        return [];
+        return { images: [] };
     }
   } catch {
-    return [];
+    return { images: [] };
   }
 }
 
-/**
- * Main generation function
- */
+// ============================================================
+// 主生成函数
+// ============================================================
 export async function generateImage(
   params: GenerationParams,
   config: ApiConfig
@@ -206,6 +342,9 @@ export async function generateImage(
     const endpoint = getEndpoint(config);
     const headers = getHeaders(config);
 
+    console.log(`[Nano Banana Studio] 请求端点: ${endpoint}`);
+    console.log(`[Nano Banana Studio] 请求体:`, JSON.stringify(body, null, 2));
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -214,18 +353,27 @@ export async function generateImage(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMsg = errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      // 不同 API 的错误格式不同
+      const errorMsg =
+        errorData.error?.message ||  // OpenAI / Gemini
+        errorData.error?.status ||   // Gemini
+        errorData.message ||         // Claude
+        `HTTP ${response.status}: ${response.statusText}`;
       return { success: false, images: [], error: errorMsg };
     }
 
     const data = await response.json();
-    const images = extractImages(data, config.format);
+    const { images, revisedPrompt } = extractImages(data, config.format);
 
     if (images.length === 0) {
-      return { success: false, images: [], error: '未能从 API 响应中提取到图片，请检查 API 配置和模型是否支持图片生成。' };
+      return {
+        success: false,
+        images: [],
+        error: '未能从 API 响应中提取到图片。请检查：\n1. API 配置和密钥是否正确\n2. 模型是否支持图片生成\n3. 请求参数是否符合要求',
+      };
     }
 
-    return { success: true, images, metadata: data };
+    return { success: true, images, metadata: data, revisedPrompt };
   } catch (err: any) {
     return {
       success: false,
@@ -235,9 +383,9 @@ export async function generateImage(
   }
 }
 
-/**
- * Test API connection
- */
+// ============================================================
+// 连接测试
+// ============================================================
 export async function testConnection(config: ApiConfig): Promise<{ success: boolean; message: string }> {
   try {
     const base = config.baseUrl.replace(/\/$/, '');
@@ -252,7 +400,6 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
         testUrl = `${base}/models?key=${config.apiKey}`;
         break;
       case 'claude':
-        // Claude doesn't have a simple health check, try a minimal request
         testUrl = `${base}/messages`;
         break;
       default:
@@ -264,7 +411,7 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
       headers,
       ...(config.format === 'claude' ? {
         body: JSON.stringify({
-          model: config.model || 'nano-banana-pro',
+          model: config.model || 'claude-3-opus-20240229',
           max_tokens: 1,
           messages: [{ role: 'user', content: 'test' }],
         }),
@@ -273,12 +420,47 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
 
     if (response.ok || response.status === 200) {
       return { success: true, message: '连接成功！API 可用。' };
-    } else if (response.status === 401) {
-      return { success: false, message: 'API Key 无效，请检查密钥。' };
+    } else if (response.status === 401 || response.status === 403) {
+      return { success: false, message: 'API Key 无效或无权限，请检查密钥。' };
     } else {
-      return { success: false, message: `连接失败：HTTP ${response.status}` };
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData.error?.message || '';
+      return { success: false, message: `连接失败：HTTP ${response.status}${detail ? ` - ${detail}` : ''}` };
     }
   } catch (err: any) {
     return { success: false, message: `连接失败：${err.message}` };
   }
+}
+
+// ============================================================
+// 导出请求预览（用于调试）
+// ============================================================
+export function previewRequest(params: GenerationParams, config: ApiConfig): {
+  endpoint: string;
+  headers: Record<string, string>;
+  body: any;
+} {
+  let body: any;
+  switch (config.format) {
+    case 'openai':
+      body = buildOpenAIRequest(params, config);
+      break;
+    case 'gemini':
+      body = buildGeminiRequest(params, config);
+      break;
+    case 'claude':
+      body = buildClaudeRequest(params, config);
+      break;
+  }
+
+  const headers = getHeaders(config);
+  // 隐藏 API key
+  const safeHeaders = { ...headers };
+  if (safeHeaders['Authorization']) safeHeaders['Authorization'] = 'Bearer sk-***';
+  if (safeHeaders['x-goog-api-key']) safeHeaders['x-goog-api-key'] = '***';
+  if (safeHeaders['x-api-key']) safeHeaders['x-api-key'] = '***';
+
+  const endpoint = getEndpoint(config).replace(config.apiKey, '***');
+
+  return { endpoint, headers: safeHeaders, body };
 }

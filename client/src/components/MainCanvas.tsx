@@ -347,7 +347,12 @@ export default function MainCanvas() {
                 )}
               </span>
               <span className="text-[10px] text-muted-foreground/40 font-mono">
-                {params.width}x{params.height} | {params.steps}步 | {params.sampler}
+                {activeConfig?.format === 'gemini'
+                  ? `${params.aspectRatio} | ${params.imageSize} | ${params.responseModalities === 'IMAGE_ONLY' ? '仅图片' : '文本+图片'}`
+                  : activeConfig?.format === 'openai'
+                  ? `${params.openaiSize} | ${params.openaiQuality} | n=${params.openaiN}`
+                  : `${params.width}x${params.height} | ${params.steps}步 | ${params.sampler}`
+                }
               </span>
             </div>
             <span className="text-[10px] text-muted-foreground/40">
