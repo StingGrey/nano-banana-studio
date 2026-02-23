@@ -13,6 +13,8 @@ import {
   DEFAULT_GENERATION_PARAMS,
   loadFromStorage,
   saveToStorage,
+  loadGenerationParamsFromStorage,
+  saveGenerationParamsToStorage,
 } from '@/lib/store';
 import { generateImage, fetchModels as apiFetchModels, type GenerationResult } from '@/lib/api-service';
 import { nanoid } from 'nanoid';
@@ -73,7 +75,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
 
   // Generation params
   const [params, setParams] = useState<GenerationParams>(() =>
-    loadFromStorage('nb-gen-params', DEFAULT_GENERATION_PARAMS)
+    loadGenerationParamsFromStorage('nb-gen-params').data
   );
 
   // Generation state
@@ -99,7 +101,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   // Persist to localStorage
   useEffect(() => { saveToStorage('nb-api-configs', apiConfigs); }, [apiConfigs]);
   useEffect(() => { saveToStorage('nb-active-config', activeConfigId); }, [activeConfigId]);
-  useEffect(() => { saveToStorage('nb-gen-params', params); }, [params]);
+  useEffect(() => { saveGenerationParamsToStorage('nb-gen-params', params); }, [params]);
   useEffect(() => { saveToStorage('nb-gallery', gallery); }, [gallery]);
 
   const addApiConfig = useCallback((config: Omit<ApiConfig, 'id'>) => {
