@@ -55,17 +55,32 @@ function buildPromptWithStyle(params: GenerationParams): string {
   return prefix + params.prompt;
 }
 
+function parseDataUrl(dataUrl: string): { mimeType: string; base64: string } | null {
+  const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
+  if (!match) return null;
+  return { mimeType: match[1], base64: match[2] };
+}
+
 // ============================================================
 // Gemini API - 严格按照官方文档
 // ============================================================
 function buildGeminiRequest(params: GenerationParams, config: ApiConfig) {
   const prompt = buildPromptWithStyle(params);
+  const imageParts = params.referenceImages
+    .map((img) => parseDataUrl(img.dataUrl))
+    .filter((img): img is { mimeType: string; base64: string } => Boolean(img))
+    .map((img) => ({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.base64,
+      },
+    }));
 
   // 基础请求体
   const body: any = {
     contents: [
       {
-        parts: [{ text: prompt }],
+        parts: [{ text: prompt }, ...imageParts],
       },
     ],
     generationConfig: {
@@ -184,6 +199,17 @@ function buildOpenAIRequest(params: GenerationParams, config: ApiConfig) {
 // ============================================================
 function buildClaudeRequest(params: GenerationParams, config: ApiConfig) {
   const prompt = buildPromptWithStyle(params);
+  const imageBlocks = params.referenceImages
+    .map((img) => parseDataUrl(img.dataUrl))
+    .filter((img): img is { mimeType: string; base64: string } => Boolean(img))
+    .map((img) => ({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: img.mimeType,
+        data: img.base64,
+      },
+    }));
 
   // Claude 本身不是图片生成模型，但一些第三方服务使用 Claude 格式
   // 将图片生成参数编码到消息中
@@ -200,6 +226,7 @@ function buildClaudeRequest(params: GenerationParams, config: ApiConfig) {
         role: 'user',
         content: [
           { type: 'text', text: messageText },
+          ...imageBlocks,
         ],
       },
     ],

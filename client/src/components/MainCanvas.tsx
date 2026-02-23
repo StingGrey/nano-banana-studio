@@ -7,11 +7,11 @@ import { useStudio } from '@/contexts/StudioContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Wand2, Download, Heart, Maximize2,
-  Copy, X, Loader2, ImageIcon, BookOpen, Trash2
+  Copy, X, Loader2, ImageIcon, BookOpen, Trash2, Upload, Camera, Paperclip, FileImage
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useState, useRef } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import PromptLibrary from './PromptLibrary';
 import ImageViewer from './ImageViewer';
@@ -37,6 +37,61 @@ export default function MainCanvas() {
   const [showNegPrompt, setShowNegPrompt] = useState(false);
   const [showPromptLib, setShowPromptLib] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const leftSlots = Math.max(0, 4 - params.referenceImages.length);
+    if (leftSlots === 0) {
+      toast.warning('最多上传 4 张参考图哦');
+      event.target.value = '';
+      return;
+    }
+
+    const acceptedFiles = files.slice(0, leftSlots);
+    const readers = acceptedFiles.map((file) => new Promise<{ name: string; type: string; dataUrl: string }>((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('仅支持图片文件'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        name: file.name,
+        type: file.type || 'image/png',
+        dataUrl: String(reader.result || ''),
+      });
+      reader.onerror = () => reject(new Error(`${file.name} 读取失败`));
+      reader.readAsDataURL(file);
+    }));
+
+    Promise.allSettled(readers).then((results) => {
+      const fulfilled = results
+        .filter((res): res is PromiseFulfilledResult<{ name: string; type: string; dataUrl: string }> => res.status === 'fulfilled')
+        .map((res) => res.value)
+        .filter((img) => img.dataUrl);
+
+      if (fulfilled.length > 0) {
+        updateParams({ referenceImages: [...params.referenceImages, ...fulfilled] });
+        toast.success(`已添加 ${fulfilled.length} 张参考图 ✨`);
+      }
+
+      const failedCount = results.length - fulfilled.length;
+      if (failedCount > 0) {
+        toast.error(`${failedCount} 张图片添加失败，请重试`);
+      }
+    });
+
+    event.target.value = '';
+  };
+
+  const removeReferenceImage = (index: number) => {
+    updateParams({
+      referenceImages: params.referenceImages.filter((_, i) => i !== index),
+    });
+  };
 
   const handleGenerate = async () => {
     if (!params.prompt.trim()) {
@@ -260,6 +315,23 @@ export default function MainCanvas() {
             )}
           </AnimatePresence>
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
           <div className="flex items-end gap-2">
             <div className="flex-1 relative">
               <textarea
@@ -286,6 +358,53 @@ export default function MainCanvas() {
               >
                 <BookOpen size={14} />
               </motion.button>
+
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border/60 bg-background/50 hover:bg-primary/5 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  type="button"
+                >
+                  <Upload size={12} />
+                  上传文件
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border/60 bg-background/50 hover:bg-primary/5 transition-colors"
+                  onClick={() => cameraInputRef.current?.click()}
+                  type="button"
+                >
+                  <Camera size={12} />
+                  拍照
+                </button>
+                {params.referenceImages.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
+                    <Paperclip size={11} />
+                    已添加 {params.referenceImages.length}/4
+                  </span>
+                )}
+              </div>
+
+              {params.referenceImages.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {params.referenceImages.map((img, idx) => (
+                    <span
+                      key={`${img.name}-${idx}`}
+                      className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary"
+                    >
+                      <FileImage size={11} />
+                      <span className="max-w-[110px] truncate">{img.name}</span>
+                      <button
+                        type="button"
+                        className="hover:text-destructive transition-colors"
+                        onClick={() => removeReferenceImage(idx)}
+                        title="移除参考图"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5 shrink-0">
