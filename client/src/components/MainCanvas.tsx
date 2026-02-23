@@ -44,15 +44,7 @@ export default function MainCanvas() {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    const leftSlots = Math.max(0, 4 - params.referenceImages.length);
-    if (leftSlots === 0) {
-      toast.warning('最多上传 4 张参考图哦');
-      event.target.value = '';
-      return;
-    }
-
-    const acceptedFiles = files.slice(0, leftSlots);
-    const readers = acceptedFiles.map((file) => new Promise<{ name: string; type: string; dataUrl: string }>((resolve, reject) => {
+    const readers = files.map((file) => new Promise<{ name: string; type: string; dataUrl: string }>((resolve, reject) => {
       if (!file.type.startsWith('image/')) {
         reject(new Error('仅支持图片文件'));
         return;
@@ -68,30 +60,20 @@ export default function MainCanvas() {
     }));
 
     Promise.allSettled(readers).then((results) => {
-      const fulfilled = results
+      const successfulImages = results
         .filter((res): res is PromiseFulfilledResult<{ name: string; type: string; dataUrl: string }> => res.status === 'fulfilled')
         .map((res) => res.value)
         .filter((img) => img.dataUrl);
 
-      if (fulfilled.length > 0) {
-        let addedCount = 0;
-        updateParams((prev) => {
-          const remainingSlots = Math.max(0, 4 - prev.referenceImages.length);
-          const newImages = fulfilled.slice(0, remainingSlots);
-          addedCount = newImages.length;
-          return {
-            referenceImages: [...prev.referenceImages, ...newImages],
-          };
-        });
-
-        if (addedCount > 0) {
-          toast.success(`已添加 ${addedCount} 张参考图 ✨`);
-        } else {
-          toast.warning('最多上传 4 张参考图哦');
-        }
+      if (successfulImages.length > 0) {
+        // 不限制参考图数量；并使用函数式更新避免异步竞态覆盖
+        updateParams((prev) => ({
+          referenceImages: [...prev.referenceImages, ...successfulImages],
+        }));
+        toast.success(`已添加 ${successfulImages.length} 张参考图 ✨`);
       }
 
-      const failedCount = results.length - fulfilled.length;
+      const failedCount = results.length - successfulImages.length;
       if (failedCount > 0) {
         toast.error(`${failedCount} 张图片添加失败，请重试`);
       }
@@ -101,9 +83,9 @@ export default function MainCanvas() {
   };
 
   const removeReferenceImage = (index: number) => {
-    updateParams({
-      referenceImages: params.referenceImages.filter((_, i) => i !== index),
-    });
+    updateParams((prev) => ({
+      referenceImages: prev.referenceImages.filter((_, i) => i !== index),
+    }));
   };
 
   const handleGenerate = async () => {
