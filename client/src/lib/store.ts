@@ -78,6 +78,7 @@ export interface ModelParamProfile {
 export interface GenerationParams {
   prompt: string;
   negativePrompt: string;
+  referenceImages: { name: string; type: string; dataUrl: string }[];
 
   // === Gemini 官方参数 ===
   // aspectRatio: "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
@@ -153,6 +154,7 @@ export const DEFAULT_API_CONFIGS: ApiConfig[] = [
 export const DEFAULT_GENERATION_PARAMS: GenerationParams = {
   prompt: '',
   negativePrompt: '',
+  referenceImages: [],
 
   // Gemini defaults
   aspectRatio: '1:1',
