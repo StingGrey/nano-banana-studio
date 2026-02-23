@@ -91,8 +91,9 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const fetchedKeysRef = useRef<Set<string>>(new Set());
 
   // UI state
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobileViewport);
+  const [rightPanelOpen, setRightPanelOpen] = useState(!isMobileViewport);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Persist to localStorage

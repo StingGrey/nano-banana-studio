@@ -82,6 +82,9 @@ export interface GenerationParams {
   // === Gemini 官方参数 ===
   // aspectRatio: "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
   aspectRatio: string;
+  // 自定义比例（aspectRatio = 'custom' 时使用）
+  customAspectRatioWidth: number;
+  customAspectRatioHeight: number;
   // imageSize: "1K", "2K", "4K" (仅 gemini-3-pro-image-preview)
   imageSize: string;
   // responseModalities: ['TEXT', 'IMAGE'] 或 ['IMAGE']
@@ -153,6 +156,8 @@ export const DEFAULT_GENERATION_PARAMS: GenerationParams = {
 
   // Gemini defaults
   aspectRatio: '1:1',
+  customAspectRatioWidth: 1,
+  customAspectRatioHeight: 1,
   imageSize: '1K',
   responseModalities: 'TEXT_AND_IMAGE',
 
@@ -213,6 +218,7 @@ export const STYLES = [
 
 // === Gemini 官方宽高比（来自文档） ===
 export const GEMINI_ASPECT_RATIOS = [
+  { value: 'auto', label: '自动', desc: '由模型自动判断构图比例' },
   { value: '1:1', label: '1:1' },
   { value: '2:3', label: '2:3' },
   { value: '3:2', label: '3:2' },
@@ -223,6 +229,7 @@ export const GEMINI_ASPECT_RATIOS = [
   { value: '9:16', label: '9:16' },
   { value: '16:9', label: '16:9' },
   { value: '21:9', label: '21:9' },
+  { value: 'custom', label: '自定义', desc: '手动输入宽高比例' },
 ];
 
 // === Gemini 官方图片尺寸（仅 gemini-3-pro-image-preview） ===
@@ -291,6 +298,13 @@ export const OPENAI_MODELS = [
 // 旧版兼容
 export const ASPECT_RATIOS = GEMINI_ASPECT_RATIOS.map(ar => {
   const [w, h] = ar.value.split(':').map(Number);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+    return {
+      ...ar,
+      w: 1024,
+      h: 1024,
+    };
+  }
   const maxDim = 1024;
   const ratio = w / h;
   return {

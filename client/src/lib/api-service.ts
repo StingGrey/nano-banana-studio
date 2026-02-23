@@ -80,8 +80,14 @@ function buildGeminiRequest(params: GenerationParams, config: ApiConfig) {
   const imageConfig: any = {};
 
   // aspectRatio - 所有 Gemini 图片模型都支持
-  if (params.aspectRatio && params.aspectRatio !== '1:1') {
-    imageConfig.aspectRatio = params.aspectRatio;
+  if (params.aspectRatio && params.aspectRatio !== '1:1' && params.aspectRatio !== 'auto') {
+    if (params.aspectRatio === 'custom') {
+      const w = Math.max(1, Math.floor(params.customAspectRatioWidth || 1));
+      const h = Math.max(1, Math.floor(params.customAspectRatioHeight || 1));
+      imageConfig.aspectRatio = `${w}:${h}`;
+    } else {
+      imageConfig.aspectRatio = params.aspectRatio;
+    }
   }
 
   // imageSize - 仅 gemini-3-pro-image-preview 支持，必须大写 K
