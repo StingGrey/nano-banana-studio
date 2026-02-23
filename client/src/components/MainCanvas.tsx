@@ -74,8 +74,21 @@ export default function MainCanvas() {
         .filter((img) => img.dataUrl);
 
       if (fulfilled.length > 0) {
-        updateParams({ referenceImages: [...params.referenceImages, ...fulfilled] });
-        toast.success(`已添加 ${fulfilled.length} 张参考图 ✨`);
+        let addedCount = 0;
+        updateParams((prev) => {
+          const remainingSlots = Math.max(0, 4 - prev.referenceImages.length);
+          const newImages = fulfilled.slice(0, remainingSlots);
+          addedCount = newImages.length;
+          return {
+            referenceImages: [...prev.referenceImages, ...newImages],
+          };
+        });
+
+        if (addedCount > 0) {
+          toast.success(`已添加 ${addedCount} 张参考图 ✨`);
+        } else {
+          toast.warning('最多上传 4 张参考图哦');
+        }
       }
 
       const failedCount = results.length - fulfilled.length;
