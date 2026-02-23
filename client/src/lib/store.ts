@@ -489,6 +489,80 @@ export function getModelParamProfile(modelId: string, format: ApiFormat): ModelP
   return FORMAT_DEFAULT_PROFILES[format];
 }
 
+export const GEN_PARAMS_STORAGE_VERSION = 2;
+
+interface GenerationParamsStorageEnvelope {
+  version: number;
+  data: Partial<GenerationParams>;
+}
+
+function normalizeGenerationParams(raw: Partial<GenerationParams> | null | undefined): GenerationParams {
+  const saved = raw ?? {};
+  return {
+    ...DEFAULT_GENERATION_PARAMS,
+    ...saved,
+    referenceImages: Array.isArray(saved.referenceImages) ? saved.referenceImages : [],
+    customParams: saved.customParams ?? DEFAULT_GENERATION_PARAMS.customParams,
+  };
+}
+
+function migrateGenerationParams(
+  raw: Partial<GenerationParams>,
+  version: number
+): { data: GenerationParams; version: number } {
+  let currentVersion = Number.isFinite(version) ? version : 0;
+  let next: Partial<GenerationParams> = { ...raw };
+
+  if (currentVersion < 1) {
+    next = {
+      ...next,
+      referenceImages: Array.isArray(next.referenceImages) ? next.referenceImages : [],
+    };
+    currentVersion = 1;
+  }
+
+  if (currentVersion < 2) {
+    next = {
+      ...next,
+      customParams: next.customParams ?? {},
+    };
+    currentVersion = 2;
+  }
+
+  return {
+    data: normalizeGenerationParams(next),
+    version: Math.max(currentVersion, GEN_PARAMS_STORAGE_VERSION),
+  };
+}
+
+function isGenerationParamsStorageEnvelope(
+  value: GenerationParamsStorageEnvelope | Partial<GenerationParams>
+): value is GenerationParamsStorageEnvelope {
+  return 'data' in value && typeof value.data === 'object' && value.data !== null;
+}
+
+export function loadGenerationParamsFromStorage(key: string): { data: GenerationParams; version: number } {
+  const raw = loadFromStorage<GenerationParamsStorageEnvelope | Partial<GenerationParams> | null>(key, null);
+
+  if (!raw) {
+    return { data: DEFAULT_GENERATION_PARAMS, version: GEN_PARAMS_STORAGE_VERSION };
+  }
+
+  if (isGenerationParamsStorageEnvelope(raw)) {
+    const version = typeof raw.version === 'number' ? raw.version : 0;
+    return migrateGenerationParams(raw.data, version);
+  }
+
+  return migrateGenerationParams(raw, 0);
+}
+
+export function saveGenerationParamsToStorage(key: string, params: GenerationParams): void {
+  saveToStorage(key, {
+    version: GEN_PARAMS_STORAGE_VERSION,
+    data: params,
+  } satisfies GenerationParamsStorageEnvelope);
+}
+
 // localStorage helpers
 export function loadFromStorage<T>(key: string, fallback: T): T {
   try {
