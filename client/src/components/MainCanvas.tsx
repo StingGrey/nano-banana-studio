@@ -82,9 +82,9 @@ export default function MainCanvas() {
   };
 
   const removeReferenceImage = (index: number) => {
-    updateParams({
-      referenceImages: params.referenceImages.filter((_, i) => i !== index),
-    });
+    updateParams((prev) => ({
+      referenceImages: prev.referenceImages.filter((_, i) => i !== index),
+    }));
   };
 
   const handleGenerate = async () => {
