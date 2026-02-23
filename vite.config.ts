@@ -150,7 +150,48 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+function vitePluginInlineSingleHtml(): Plugin {
+  return {
+    name: "inline-single-html",
+    apply: "build",
+    closeBundle() {
+      if (process.env.SINGLE_FILE !== "true") {
+        return;
+      }
+
+      const outDir = path.resolve(import.meta.dirname, "dist/public");
+      const htmlPath = path.join(outDir, "index.html");
+      if (!fs.existsSync(htmlPath)) {
+        return;
+      }
+
+      let html = fs.readFileSync(htmlPath, "utf-8");
+
+      html = html.replace(/<script[^>]*src="\/(assets\/[^"]+)"[^>]*><\/script>/g, (_, assetPath: string) => {
+        const fullPath = path.join(outDir, assetPath);
+        if (!fs.existsSync(fullPath)) return "";
+        const js = fs.readFileSync(fullPath, "utf-8");
+        return `<script>${js}</script>`;
+      });
+
+      html = html.replace(/<link[^>]*rel="stylesheet"[^>]*href="\/(assets\/[^"]+)"[^>]*>/g, (_, assetPath: string) => {
+        const fullPath = path.join(outDir, assetPath);
+        if (!fs.existsSync(fullPath)) return "";
+        const css = fs.readFileSync(fullPath, "utf-8");
+        return `<style>${css}</style>`;
+      });
+
+      fs.writeFileSync(htmlPath, html, "utf-8");
+
+      const assetsDir = path.join(outDir, "assets");
+      if (fs.existsSync(assetsDir)) {
+        fs.rmSync(assetsDir, { recursive: true, force: true });
+      }
+    },
+  };
+}
+
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginInlineSingleHtml()];
 
 export default defineConfig({
   plugins,
