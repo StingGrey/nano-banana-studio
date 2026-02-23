@@ -30,7 +30,8 @@ import {
   resolveRequestFormat,
 } from '@/lib/store';
 import { previewRequest } from '@/lib/api-service';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/useMobile';
 
 function SectionHeader({ icon: Icon, title, badge, children }: { icon: any; title: string; badge?: string; children?: React.ReactNode }) {
   return (
@@ -230,40 +231,77 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
 }) {
   switch (def.type) {
     case 'grid': {
-      // aspectRatio 特殊渲染（带比例图形）
+      // aspectRatio 特殊渲染（带比例图形 + 自动/自定义）
       if (def.key === 'aspectRatio') {
         return (
-          <div className={cn("grid gap-1.5", `grid-cols-${def.cols || 5}`)}>
-            {(def.options || []).map((ar) => {
-              const [w, h] = ar.value.split(':').map(Number);
-              const ratio = w / h;
-              return (
-                <motion.button
-                  key={ar.value}
-                  className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl transition-all border",
-                    value === ar.value
-                      ? "bg-primary/15 border-primary/30 shadow-sm"
-                      : "bg-muted/30 border-transparent hover:bg-muted/60"
-                  )}
-                  onClick={() => onChange(ar.value)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              {(def.options || []).map((ar) => {
+                const [w, h] = ar.value.split(':').map(Number);
+                const hasNumericRatio = Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0;
+                const ratio = hasNumericRatio ? w / h : 1;
+                const isAuto = ar.value === 'auto';
+                const isCustom = ar.value === 'custom';
+
+                return (
+                  <motion.button
+                    key={ar.value}
                     className={cn(
-                      "border-2 rounded-sm transition-colors",
-                      value === ar.value ? "border-primary" : "border-muted-foreground/30"
+                      "flex items-center gap-2 p-2 rounded-xl transition-all border text-left",
+                      value === ar.value
+                        ? "bg-primary/15 border-primary/30 shadow-sm"
+                        : "bg-muted/30 border-transparent hover:bg-muted/60"
                     )}
-                    style={{
-                      width: `${Math.min(20, 20 * (ratio >= 1 ? 1 : ratio))}px`,
-                      height: `${Math.min(20, 20 * (ratio <= 1 ? 1 : 1 / ratio))}px`,
-                    }}
-                  />
-                  <span className="text-[9px] font-mono font-medium">{ar.label}</span>
-                </motion.button>
-              );
-            })}
+                    onClick={() => onChange(ar.value)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="w-6 h-6 rounded-md bg-background/70 border border-border/50 flex items-center justify-center shrink-0">
+                      {isAuto ? (
+                        <Sparkles size={12} className="text-primary" />
+                      ) : isCustom ? (
+                        <SlidersHorizontal size={12} className="text-primary" />
+                      ) : (
+                        <div
+                          className={cn(
+                            "border-2 rounded-sm transition-colors",
+                            value === ar.value ? "border-primary" : "border-muted-foreground/30"
+                          )}
+                          style={{
+                            width: `${Math.min(16, 16 * (ratio >= 1 ? 1 : ratio))}px`,
+                            height: `${Math.min(16, 16 * (ratio <= 1 ? 1 : 1 / ratio))}px`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-mono font-semibold leading-none">{ar.label}</div>
+                      {ar.desc && <div className="text-[9px] text-muted-foreground mt-1 leading-tight">{ar.desc}</div>}
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {value === 'custom' && (
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center bg-muted/20 rounded-xl p-2.5 border border-border/30">
+                <input
+                  type="number"
+                  min={1}
+                  value={params.customAspectRatioWidth || 1}
+                  onChange={(e) => updateParams({ customAspectRatioWidth: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="w-full px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                />
+                <span className="text-xs text-muted-foreground font-mono">:</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={params.customAspectRatioHeight || 1}
+                  onChange={(e) => updateParams({ customAspectRatioHeight: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="w-full px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                />
+              </div>
+            )}
           </div>
         );
       }
@@ -416,6 +454,14 @@ export default function ParamsPanel() {
   const [showPreview, setShowPreview] = useState(false);
   const [customKey, setCustomKey] = useState('');
   const [customValue, setCustomValue] = useState('');
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (isMobile) {
+      setShowCustom(false);
+      setShowPreview(false);
+    }
+  }, [isMobile]);
 
   const authFormat = activeConfig?.format || 'gemini';
   // 请求格式由模型决定
