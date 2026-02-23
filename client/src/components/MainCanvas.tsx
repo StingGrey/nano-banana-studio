@@ -44,15 +44,7 @@ export default function MainCanvas() {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    const leftSlots = Math.max(0, 4 - params.referenceImages.length);
-    if (leftSlots === 0) {
-      toast.warning('最多上传 4 张参考图哦');
-      event.target.value = '';
-      return;
-    }
-
-    const acceptedFiles = files.slice(0, leftSlots);
-    const readers = acceptedFiles.map((file) => new Promise<{ name: string; type: string; dataUrl: string }>((resolve, reject) => {
+    const readers = files.map((file) => new Promise<{ name: string; type: string; dataUrl: string }>((resolve, reject) => {
       if (!file.type.startsWith('image/')) {
         reject(new Error('仅支持图片文件'));
         return;
@@ -74,7 +66,9 @@ export default function MainCanvas() {
         .filter((img) => img.dataUrl);
 
       if (fulfilled.length > 0) {
-        updateParams({ referenceImages: [...params.referenceImages, ...fulfilled] });
+        updateParams((prev) => ({
+          referenceImages: [...prev.referenceImages, ...fulfilled],
+        }));
         toast.success(`已添加 ${fulfilled.length} 张参考图 ✨`);
       }
 

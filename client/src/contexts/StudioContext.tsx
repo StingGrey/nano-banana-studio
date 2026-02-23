@@ -35,7 +35,7 @@ interface StudioState {
 
   // Generation params
   params: GenerationParams;
-  updateParams: (updates: Partial<GenerationParams>) => void;
+  updateParams: (updates: Partial<GenerationParams> | ((prev: GenerationParams) => Partial<GenerationParams>)) => void;
   resetParams: () => void;
 
   // Generation
@@ -154,8 +154,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [apiConfigs, refreshModels]);
 
-  const updateParams = useCallback((updates: Partial<GenerationParams>) => {
-    setParams(prev => ({ ...prev, ...updates }));
+  const updateParams = useCallback((updates: Partial<GenerationParams> | ((prev: GenerationParams) => Partial<GenerationParams>)) => {
+    setParams(prev => {
+      const resolvedUpdates = typeof updates === 'function' ? updates(prev) : updates;
+      return { ...prev, ...resolvedUpdates };
+    });
   }, []);
 
   const resetParams = useCallback(() => {
