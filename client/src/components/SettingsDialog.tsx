@@ -17,10 +17,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { type ApiFormat, GEMINI_MODELS, OPENAI_MODELS } from '@/lib/store';
+import { type ApiFormat, GEMINI_MODELS, OPENAI_MODELS, resolveRequestFormat } from '@/lib/store';
 import { testConnection } from '@/lib/api-service';
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { Link } from 'lucide-react';
 
 const FORMAT_INFO: Record<ApiFormat, {
   label: string;
@@ -289,14 +290,41 @@ export default function SettingsDialog() {
                           placeholder={info.placeholder}
                           className="w-full px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
                         />
+                      </div>
+
+                      {/* Custom Endpoint */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                          <Link size={10} />
+                          端点路径（可选，留空自动推断）
+                        </Label>
+                        <input
+                          type="text"
+                          value={config.endpoint || ''}
+                          onChange={(e) => updateApiConfig(config.id, { endpoint: e.target.value || undefined })}
+                          placeholder={(() => {
+                            const rf = resolveRequestFormat(config);
+                            return rf === 'gemini' ? '/models/{model}:generateContent?key={apiKey}'
+                              : rf === 'openai' ? '/images/generations'
+                              : '/messages';
+                          })()}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                        />
                         <p className="text-[9px] text-muted-foreground/50 mt-1">
-                          {config.format === 'gemini'
-                            ? '完整请求 URL = Base URL + /models/{模型名}:generateContent?key={API Key}'
-                            : config.format === 'openai'
-                            ? '完整请求 URL = Base URL + /images/generations'
-                            : '完整请求 URL = Base URL + /messages'
-                          }
+                          支持 <code className="text-[8px] bg-muted/40 px-1 rounded">{'{model}'}</code> 和 <code className="text-[8px] bg-muted/40 px-1 rounded">{'{apiKey}'}</code> 变量。留空时按模型名自动选择端点格式
                         </p>
+                        {/* 显示当前生效的请求格式 */}
+                        {(() => {
+                          const rf = resolveRequestFormat(config);
+                          if (rf !== config.format) {
+                            return (
+                              <p className="text-[9px] mt-1.5 px-2 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                                检测到模型 <span className="font-mono font-bold">{config.model}</span> 为 <span className="font-bold">{rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'}</span> 格式，请求体将自动使用 {rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'} 格式构建
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
 
                       {/* API Key */}

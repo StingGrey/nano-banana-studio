@@ -20,6 +20,7 @@
  */
 
 import type { ApiConfig, GenerationParams, ModelInfo } from './store';
+import { resolveRequestFormat } from './store';
 
 export interface GenerationResult {
   success: boolean;
@@ -236,21 +237,30 @@ function getHeaders(config: ApiConfig): Record<string, string> {
 }
 
 // ============================================================
-// 端点 URL
+// 端点 URL — 支持自定义，否则根据请求格式自动推断
 // ============================================================
-function getEndpoint(config: ApiConfig): string {
+function getEndpoint(config: ApiConfig, requestFormat: ApiConfig['format']): string {
   const base = config.baseUrl.replace(/\/$/, '');
 
-  switch (config.format) {
+  // 用户设置了自定义端点路径
+  if (config.endpoint) {
+    const ep = config.endpoint.trim();
+    // 替换模板变量
+    const resolved = ep
+      .replace(/\{model\}/gi, config.model || '')
+      .replace(/\{apiKey\}/gi, config.apiKey || '');
+    // 判断是完整 URL 还是相对路径
+    if (/^https?:\/\//i.test(resolved)) return resolved;
+    return `${base}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+  }
+
+  // 根据请求格式自动推断端点
+  switch (requestFormat) {
     case 'openai':
-      // POST /v1/images/generations
       return `${base}/images/generations`;
     case 'gemini':
-      // POST /v1beta/models/{model}:generateContent?key={apiKey}
-      // 注意：如果 base 已经包含 /v1beta 则不重复添加
       return `${base}/models/${config.model || 'gemini-3-pro-image-preview'}:generateContent?key=${config.apiKey}`;
     case 'claude':
-      // POST /v1/messages
       return `${base}/messages`;
     default:
       return base;
@@ -325,9 +335,11 @@ export async function generateImage(
   config: ApiConfig
 ): Promise<GenerationResult> {
   try {
+    // 请求体格式由模型决定，认证格式由 config.format 决定
+    const requestFormat = resolveRequestFormat(config);
     let body: any;
 
-    switch (config.format) {
+    switch (requestFormat) {
       case 'openai':
         body = buildOpenAIRequest(params, config);
         break;
@@ -339,9 +351,10 @@ export async function generateImage(
         break;
     }
 
-    const endpoint = getEndpoint(config);
-    const headers = getHeaders(config);
+    const endpoint = getEndpoint(config, requestFormat);
+    const headers = getHeaders(config); // 认证始终按 config.format
 
+    console.log(`[Nano Banana Studio] 认证格式: ${config.format}, 请求格式: ${requestFormat}`);
     console.log(`[Nano Banana Studio] 请求端点: ${endpoint}`);
     console.log(`[Nano Banana Studio] 请求体:`, JSON.stringify(body, null, 2));
 
@@ -353,17 +366,17 @@ export async function generateImage(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      // 不同 API 的错误格式不同
       const errorMsg =
-        errorData.error?.message ||  // OpenAI / Gemini
-        errorData.error?.status ||   // Gemini
-        errorData.message ||         // Claude
+        errorData.error?.message ||
+        errorData.error?.status ||
+        errorData.message ||
         `HTTP ${response.status}: ${response.statusText}`;
       return { success: false, images: [], error: errorMsg };
     }
 
     const data = await response.json();
-    const { images, revisedPrompt } = extractImages(data, config.format);
+    // 响应解析也使用请求格式（与请求体格式一致）
+    const { images, revisedPrompt } = extractImages(data, requestFormat);
 
     if (images.length === 0) {
       return {
@@ -505,9 +518,11 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
   endpoint: string;
   headers: Record<string, string>;
   body: any;
+  requestFormat: string;
 } {
+  const requestFormat = resolveRequestFormat(config);
   let body: any;
-  switch (config.format) {
+  switch (requestFormat) {
     case 'openai':
       body = buildOpenAIRequest(params, config);
       break;
@@ -520,13 +535,12 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
   }
 
   const headers = getHeaders(config);
-  // 隐藏 API key
   const safeHeaders = { ...headers };
   if (safeHeaders['Authorization']) safeHeaders['Authorization'] = 'Bearer sk-***';
   if (safeHeaders['x-goog-api-key']) safeHeaders['x-goog-api-key'] = '***';
   if (safeHeaders['x-api-key']) safeHeaders['x-api-key'] = '***';
 
-  const endpoint = getEndpoint(config).replace(config.apiKey, '***');
+  const endpoint = getEndpoint(config, requestFormat).replace(config.apiKey, '***');
 
-  return { endpoint, headers: safeHeaders, body };
+  return { endpoint, headers: safeHeaders, body, requestFormat };
 }
