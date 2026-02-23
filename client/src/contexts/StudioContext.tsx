@@ -3,17 +3,18 @@
  * Global state for API configs, generation params, and gallery
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import {
   type ApiConfig,
   type GenerationParams,
   type GeneratedImage,
+  type ModelInfo,
   DEFAULT_API_CONFIGS,
   DEFAULT_GENERATION_PARAMS,
   loadFromStorage,
   saveToStorage,
 } from '@/lib/store';
-import { generateImage, type GenerationResult } from '@/lib/api-service';
+import { generateImage, fetchModels as apiFetchModels, type GenerationResult } from '@/lib/api-service';
 import { nanoid } from 'nanoid';
 
 interface StudioState {
@@ -24,6 +25,11 @@ interface StudioState {
   updateApiConfig: (id: string, updates: Partial<ApiConfig>) => void;
   deleteApiConfig: (id: string) => void;
   setActiveConfig: (id: string) => void;
+
+  // Models
+  availableModels: Record<string, ModelInfo[]>; // configId → models
+  fetchingModels: Record<string, boolean>;      // configId → loading
+  refreshModels: (configId: string) => Promise<void>;
 
   // Generation params
   params: GenerationParams;
@@ -79,6 +85,11 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     loadFromStorage('nb-gallery', [])
   );
 
+  // Models
+  const [availableModels, setAvailableModels] = useState<Record<string, ModelInfo[]>>({});
+  const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({});
+  const fetchedKeysRef = useRef<Set<string>>(new Set());
+
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -113,6 +124,32 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   const setActiveConfigFn = useCallback((id: string) => {
     setActiveConfigId(id);
   }, []);
+
+  const refreshModels = useCallback(async (configId: string) => {
+    const config = apiConfigs.find(c => c.id === configId);
+    if (!config || !config.baseUrl || !config.apiKey) return;
+
+    setFetchingModels(prev => ({ ...prev, [configId]: true }));
+    try {
+      const result = await apiFetchModels(config);
+      if (result.success) {
+        setAvailableModels(prev => ({ ...prev, [configId]: result.models }));
+      }
+    } finally {
+      setFetchingModels(prev => ({ ...prev, [configId]: false }));
+    }
+  }, [apiConfigs]);
+
+  // 当配置的 baseUrl/apiKey/format 变化时自动获取模型列表
+  useEffect(() => {
+    for (const config of apiConfigs) {
+      if (!config.baseUrl || !config.apiKey) continue;
+      const fetchKey = `${config.id}:${config.format}:${config.baseUrl}:${config.apiKey}`;
+      if (fetchedKeysRef.current.has(fetchKey)) continue;
+      fetchedKeysRef.current.add(fetchKey);
+      refreshModels(config.id);
+    }
+  }, [apiConfigs, refreshModels]);
 
   const updateParams = useCallback((updates: Partial<GenerationParams>) => {
     setParams(prev => ({ ...prev, ...updates }));
@@ -184,6 +221,7 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   return (
     <StudioContext.Provider value={{
       apiConfigs, activeConfig, addApiConfig, updateApiConfig, deleteApiConfig, setActiveConfig: setActiveConfigFn,
+      availableModels, fetchingModels, refreshModels,
       params, updateParams, resetParams,
       isGenerating, progress, generate,
       gallery, addToGallery, removeFromGallery, toggleFavorite, clearGallery,

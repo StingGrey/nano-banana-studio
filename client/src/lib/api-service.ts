@@ -19,7 +19,7 @@
  *   文档: https://docs.anthropic.com/en/docs/build-with-claude/vision
  */
 
-import type { ApiConfig, GenerationParams } from './store';
+import type { ApiConfig, GenerationParams, ModelInfo } from './store';
 
 export interface GenerationResult {
   success: boolean;
@@ -429,6 +429,72 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
     }
   } catch (err: any) {
     return { success: false, message: `连接失败：${err.message}` };
+  }
+}
+
+// ============================================================
+// 自动获取可用模型列表
+// ============================================================
+export async function fetchModels(config: ApiConfig): Promise<{ success: boolean; models: ModelInfo[]; error?: string }> {
+  try {
+    const base = config.baseUrl.replace(/\/$/, '');
+    const headers = getHeaders(config);
+
+    switch (config.format) {
+      case 'openai': {
+        // GET /models
+        const response = await fetch(`${base}/models`, { headers });
+        if (!response.ok) {
+          return { success: false, models: [], error: `HTTP ${response.status}` };
+        }
+        const data = await response.json();
+        const models: ModelInfo[] = (data.data || []).map((m: any) => ({
+          id: m.id,
+          name: m.id,
+          desc: m.owned_by ? `by ${m.owned_by}` : undefined,
+          source: 'api' as const,
+        }));
+        return { success: true, models };
+      }
+
+      case 'gemini': {
+        // GET /models?key={apiKey}
+        const response = await fetch(`${base}/models?key=${config.apiKey}`, { headers });
+        if (!response.ok) {
+          return { success: false, models: [], error: `HTTP ${response.status}` };
+        }
+        const data = await response.json();
+        const models: ModelInfo[] = (data.models || []).map((m: any) => ({
+          id: (m.name || '').replace('models/', ''),
+          name: m.displayName || (m.name || '').replace('models/', ''),
+          desc: m.description?.slice(0, 60) || undefined,
+          source: 'api' as const,
+        }));
+        return { success: true, models };
+      }
+
+      case 'claude': {
+        // GET /models
+        const response = await fetch(`${base}/models`, { headers });
+        if (!response.ok) {
+          return { success: false, models: [], error: `HTTP ${response.status}` };
+        }
+        const data = await response.json();
+        const list = data.data || data.models || [];
+        const models: ModelInfo[] = list.map((m: any) => ({
+          id: m.id || m.name,
+          name: m.display_name || m.id || m.name,
+          desc: m.description?.slice(0, 60) || undefined,
+          source: 'api' as const,
+        }));
+        return { success: true, models };
+      }
+
+      default:
+        return { success: false, models: [], error: '不支持的 API 格式' };
+    }
+  } catch (err: any) {
+    return { success: false, models: [], error: err.message || '网络请求失败' };
   }
 }
 

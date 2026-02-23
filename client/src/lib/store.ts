@@ -20,6 +20,41 @@ export interface ApiConfig {
   isActive: boolean;
 }
 
+// === 从 API 获取的模型信息 ===
+export interface ModelInfo {
+  id: string;          // 模型标识符（如 "gemini-3-pro-image-preview"）
+  name: string;        // 显示名称
+  desc?: string;       // 描述
+  source: 'api' | 'builtin';  // 来源
+}
+
+// === 模型参数定义 ===
+export type ParamType = 'grid' | 'slider' | 'number';
+
+export interface ParamDef {
+  key: string;           // 对应 GenerationParams 中的字段
+  label: string;         // 显示名称
+  type: ParamType;
+  icon?: string;         // lucide 图标名
+  sectionTitle?: string; // 所在分组标题（同标题的参数会归入同一组）
+  sectionBadge?: string; // 分组角标
+  description?: string;  // 参数说明
+  // grid / select 类型
+  options?: { value: string; label: string; desc?: string }[];
+  cols?: number;
+  // slider / number 类型
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  // 默认值
+  defaultValue?: any;
+}
+
+export interface ModelParamProfile {
+  params: ParamDef[];
+}
+
 export interface GenerationParams {
   prompt: string;
   negativePrompt: string;
@@ -246,6 +281,177 @@ export const ASPECT_RATIOS = GEMINI_ASPECT_RATIOS.map(ar => {
 });
 
 export const QUALITY_OPTIONS = OPENAI_QUALITY_OPTIONS;
+
+// === 模型参数配置 — 由模型决定参数 ===
+// 每个 profile 定义该模型支持的参数，ParamsPanel 据此动态渲染
+
+const GEMINI_COMMON_PARAMS: ParamDef[] = [
+  {
+    key: 'aspectRatio', label: '画面比例', type: 'grid',
+    sectionTitle: '画面比例', icon: 'Ratio', sectionBadge: 'Gemini',
+    options: GEMINI_ASPECT_RATIOS, cols: 5,
+  },
+  {
+    key: 'responseModalities', label: '响应模态', type: 'grid',
+    sectionTitle: '响应模态', icon: 'MessageSquare', sectionBadge: 'Gemini',
+    options: GEMINI_RESPONSE_MODALITIES, cols: 2,
+  },
+];
+
+const GEMINI_PRO_PARAMS: ParamDef[] = [
+  ...GEMINI_COMMON_PARAMS.slice(0, 1), // aspectRatio
+  {
+    key: 'imageSize', label: '图片分辨率', type: 'grid',
+    sectionTitle: '图片分辨率', icon: 'Gem', sectionBadge: 'Gemini',
+    options: GEMINI_IMAGE_SIZES, cols: 3,
+    description: '2K/4K 仅 gemini-3-pro-image-preview 支持',
+  },
+  ...GEMINI_COMMON_PARAMS.slice(1), // responseModalities
+];
+
+const OPENAI_FULL_PARAMS: ParamDef[] = [
+  {
+    key: 'openaiSize', label: '图片尺寸', type: 'grid',
+    sectionTitle: '图片尺寸', icon: 'Maximize2', sectionBadge: 'OpenAI',
+    options: OPENAI_SIZES, cols: 2,
+  },
+  {
+    key: 'openaiQuality', label: '质量', type: 'grid',
+    sectionTitle: '质量', icon: 'Sparkles', sectionBadge: 'OpenAI',
+    options: OPENAI_QUALITY_OPTIONS, cols: 2,
+  },
+  {
+    key: 'openaiN', label: 'n (同时生成)', type: 'slider',
+    sectionTitle: '生成数量', icon: 'Layers', sectionBadge: 'OpenAI',
+    min: 1, max: 10,
+  },
+  {
+    key: 'openaiBackground', label: '背景', type: 'grid',
+    sectionTitle: '背景', icon: 'MonitorSmartphone', sectionBadge: 'OpenAI',
+    options: OPENAI_BACKGROUND_OPTIONS, cols: 3,
+  },
+  {
+    key: 'openaiOutputFormat', label: '输出格式', type: 'grid',
+    sectionTitle: '输出格式', icon: 'FileType', sectionBadge: 'OpenAI',
+    options: OPENAI_OUTPUT_FORMATS, cols: 3,
+  },
+  {
+    key: 'openaiModeration', label: '内容审核', type: 'grid',
+    sectionTitle: '内容审核', icon: 'Shield', sectionBadge: 'OpenAI',
+    options: OPENAI_MODERATION_OPTIONS, cols: 2,
+  },
+];
+
+const DALLE3_PARAMS: ParamDef[] = [
+  {
+    key: 'openaiSize', label: '图片尺寸', type: 'grid',
+    sectionTitle: '图片尺寸', icon: 'Maximize2', sectionBadge: 'OpenAI',
+    options: [
+      { value: '1024x1024', label: '1024x1024', desc: '正方形' },
+      { value: '1792x1024', label: '1792x1024', desc: '横版' },
+      { value: '1024x1792', label: '1024x1792', desc: '竖版' },
+    ], cols: 3,
+  },
+  {
+    key: 'openaiQuality', label: '质量', type: 'grid',
+    sectionTitle: '质量', icon: 'Sparkles', sectionBadge: 'OpenAI',
+    options: [
+      { value: 'standard', label: '标准', desc: '默认' },
+      { value: 'hd', label: 'HD', desc: '高质量' },
+    ], cols: 2,
+  },
+];
+
+const SD_COMPAT_PARAMS: ParamDef[] = [
+  {
+    key: 'width', label: '宽度', type: 'number',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    min: 64, max: 2048,
+  },
+  {
+    key: 'height', label: '高度', type: 'number',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    min: 64, max: 2048,
+  },
+  {
+    key: 'steps', label: '采样步数', type: 'slider',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    min: 1, max: 150,
+  },
+  {
+    key: 'cfgScale', label: 'CFG Scale', type: 'slider',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    min: 1, max: 30, step: 0.5,
+  },
+  {
+    key: 'seed', label: '种子', type: 'number',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    description: '-1 为随机',
+  },
+  {
+    key: 'batchSize', label: '批量数', type: 'number',
+    sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
+    min: 1, max: 8,
+  },
+];
+
+const SD_ADVANCED_PARAMS: ParamDef[] = [
+  {
+    key: 'clipSkip', label: 'Clip Skip', type: 'slider',
+    sectionTitle: '高级选项', icon: 'Layers',
+    min: 1, max: 12,
+  },
+  {
+    key: 'denoisingStrength', label: '去噪强度', type: 'slider',
+    sectionTitle: '高级选项', icon: 'Layers',
+    min: 0, max: 1, step: 0.05,
+  },
+  {
+    key: 'hiresUpscale', label: '高清放大倍数', type: 'slider',
+    sectionTitle: '高级选项', icon: 'Layers',
+    min: 1, max: 4, step: 0.1, unit: 'x',
+  },
+  {
+    key: 'hiresSteps', label: '高清放大步数', type: 'slider',
+    sectionTitle: '高级选项', icon: 'Layers',
+    min: 0, max: 100,
+  },
+];
+
+// 模型参数配置注册表：模型ID模式 → 参数定义
+// 按顺序匹配，首个匹配的生效
+const MODEL_PARAM_REGISTRY: { pattern: RegExp; profile: ModelParamProfile }[] = [
+  // Gemini 3 Pro - 支持 imageSize (4K)
+  { pattern: /gemini-3.*pro|pro.*image/i, profile: { params: GEMINI_PRO_PARAMS } },
+  // Gemini 通用（Flash 等）
+  { pattern: /gemini/i, profile: { params: GEMINI_COMMON_PARAMS } },
+  // DALL-E 3
+  { pattern: /dall-e-3/i, profile: { params: DALLE3_PARAMS } },
+  // OpenAI GPT Image 系列
+  { pattern: /gpt-image|openai/i, profile: { params: OPENAI_FULL_PARAMS } },
+  // Stable Diffusion 兼容
+  { pattern: /stable|sd|sdxl|flux|midjourney|comfy/i, profile: { params: [...SD_COMPAT_PARAMS, ...SD_ADVANCED_PARAMS] } },
+];
+
+// 各 format 的默认 profile（未匹配已知模型时使用）
+const FORMAT_DEFAULT_PROFILES: Record<ApiFormat, ModelParamProfile> = {
+  gemini: { params: GEMINI_COMMON_PARAMS },
+  openai: { params: OPENAI_FULL_PARAMS },
+  claude: { params: [...SD_COMPAT_PARAMS, ...SD_ADVANCED_PARAMS] },
+};
+
+/**
+ * 根据模型 ID 和 API 格式获取参数定义
+ * 优先按模型名称模式匹配，未匹配到时按 format 回退
+ */
+export function getModelParamProfile(modelId: string, format: ApiFormat): ModelParamProfile {
+  for (const { pattern, profile } of MODEL_PARAM_REGISTRY) {
+    if (pattern.test(modelId)) {
+      return profile;
+    }
+  }
+  return FORMAT_DEFAULT_PROFILES[format];
+}
 
 // localStorage helpers
 export function loadFromStorage<T>(key: string, fallback: T): T {

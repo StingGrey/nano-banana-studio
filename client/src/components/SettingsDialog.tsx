@@ -11,8 +11,8 @@
 import { useStudio } from '@/contexts/StudioContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Plus, Trash2, TestTube, Check, 
-  Globe, Key, Server, Cpu, Copy, Eye, EyeOff, Info, ExternalLink
+  X, Plus, Trash2, TestTube, Check,
+  Globe, Key, Server, Cpu, Copy, Eye, EyeOff, Info, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -67,7 +67,7 @@ const FORMAT_OPTIONS: { value: ApiFormat; label: string }[] = [
 ];
 
 export default function SettingsDialog() {
-  const { settingsOpen, setSettingsOpen, apiConfigs, addApiConfig, updateApiConfig, deleteApiConfig, setActiveConfig, activeConfig } = useStudio();
+  const { settingsOpen, setSettingsOpen, apiConfigs, addApiConfig, updateApiConfig, deleteApiConfig, setActiveConfig, activeConfig, availableModels, fetchingModels, refreshModels } = useStudio();
   const [testingId, setTestingId] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
 
@@ -342,39 +342,89 @@ export default function SettingsDialog() {
                           <Cpu size={10} />
                           模型名称
                         </Label>
-                        <input
-                          type="text"
-                          value={config.model}
-                          onChange={(e) => updateApiConfig(config.id, { model: e.target.value })}
-                          placeholder={
-                            config.format === 'gemini' ? 'gemini-3-pro-image-preview' :
-                            config.format === 'openai' ? 'gpt-image-1' :
-                            'claude-3-opus-20240229'
-                          }
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
-                        />
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={config.model}
+                            onChange={(e) => updateApiConfig(config.id, { model: e.target.value })}
+                            placeholder={
+                              config.format === 'gemini' ? 'gemini-3-pro-image-preview' :
+                              config.format === 'openai' ? 'gpt-image-1' :
+                              'claude-3-opus-20240229'
+                            }
+                            className="flex-1 px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                          />
+                          <button
+                            type="button"
+                            className="h-9 px-2.5 rounded-xl bg-muted/30 border border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-colors flex items-center gap-1 text-xs disabled:opacity-40 shrink-0"
+                            onClick={() => refreshModels(config.id)}
+                            disabled={fetchingModels[config.id] || !config.baseUrl || !config.apiKey}
+                            title="从 API 获取可用模型"
+                          >
+                            <motion.div
+                              animate={fetchingModels[config.id] ? { rotate: 360 } : {}}
+                              transition={fetchingModels[config.id] ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
+                            >
+                              <RefreshCw size={12} />
+                            </motion.div>
+                          </button>
+                        </div>
 
-                        {/* Model suggestions - native buttons for mobile */}
-                        {(config.format === 'gemini' || config.format === 'openai') && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            <span className="text-[9px] text-muted-foreground/50 mr-1 leading-6">推荐：</span>
-                            {(config.format === 'gemini' ? GEMINI_MODELS : OPENAI_MODELS).map((m) => (
-                              <button
-                                key={m.value}
-                                type="button"
-                                className={cn(
-                                  "text-[10px] px-2.5 py-1 rounded-full border transition-all active:scale-95",
-                                  config.model === m.value
-                                    ? "bg-primary/15 border-primary/30 text-primary font-bold"
-                                    : "bg-muted/30 border-border/30 text-muted-foreground hover:bg-muted/60 active:bg-muted/80"
-                                )}
-                                onClick={() => updateApiConfig(config.id, { model: m.value })}
-                                title={m.desc}
-                              >
-                                {m.label}
-                              </button>
-                            ))}
+                        {/* 从 API 获取的模型列表 */}
+                        {availableModels[config.id] && availableModels[config.id].length > 0 ? (
+                          <div className="mt-2">
+                            <span className="text-[9px] text-muted-foreground/50 leading-6 flex items-center gap-1 mb-1">
+                              <RefreshCw size={8} />
+                              从 API 获取（{availableModels[config.id].length} 个模型）
+                            </span>
+                            <div className="max-h-[120px] overflow-y-auto rounded-xl border border-border/30 bg-muted/10" style={{ WebkitOverflowScrolling: 'touch' }}>
+                              {availableModels[config.id].map((m) => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  className={cn(
+                                    "w-full text-left px-2.5 py-1.5 text-[10px] transition-all border-b border-border/10 last:border-b-0",
+                                    config.model === m.id
+                                      ? "bg-primary/15 text-primary font-bold"
+                                      : "hover:bg-muted/40 text-muted-foreground active:bg-muted/60"
+                                  )}
+                                  onClick={() => updateApiConfig(config.id, { model: m.id })}
+                                >
+                                  <span className="font-mono">{m.id}</span>
+                                  {m.desc && <span className="ml-1.5 text-[9px] text-muted-foreground/60">— {m.desc}</span>}
+                                </button>
+                              ))}
+                            </div>
                           </div>
+                        ) : (
+                          /* 内置推荐模型（兜底） */
+                          (config.format === 'gemini' || config.format === 'openai') && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              <span className="text-[9px] text-muted-foreground/50 mr-1 leading-6">推荐：</span>
+                              {(config.format === 'gemini' ? GEMINI_MODELS : OPENAI_MODELS).map((m) => (
+                                <button
+                                  key={m.value}
+                                  type="button"
+                                  className={cn(
+                                    "text-[10px] px-2.5 py-1 rounded-full border transition-all active:scale-95",
+                                    config.model === m.value
+                                      ? "bg-primary/15 border-primary/30 text-primary font-bold"
+                                      : "bg-muted/30 border-border/30 text-muted-foreground hover:bg-muted/60 active:bg-muted/80"
+                                  )}
+                                  onClick={() => updateApiConfig(config.id, { model: m.value })}
+                                  title={m.desc}
+                                >
+                                  {m.label}
+                                </button>
+                              ))}
+                            </div>
+                          )
+                        )}
+
+                        {fetchingModels[config.id] && (
+                          <p className="text-[9px] text-primary/60 mt-1 animate-pulse">
+                            正在从 API 获取模型列表...
+                          </p>
                         )}
                       </div>
                     </motion.div>
