@@ -13,10 +13,11 @@ export type ApiFormat = 'openai' | 'gemini' | 'claude';
 export interface ApiConfig {
   id: string;
   name: string;
-  format: ApiFormat;
+  format: ApiFormat;       // 认证格式（决定请求头）
   baseUrl: string;
   apiKey: string;
   model: string;
+  endpoint?: string;       // 自定义端点路径（为空时自动推断）
   isActive: boolean;
 }
 
@@ -26,6 +27,25 @@ export interface ModelInfo {
   name: string;        // 显示名称
   desc?: string;       // 描述
   source: 'api' | 'builtin';  // 来源
+}
+
+/**
+ * 根据模型名称推断实际的请求格式
+ * 解决：代理服务用 OpenAI 认证但实际模型是 Gemini 的场景
+ * 返回 null 表示未识别，应使用 config.format
+ */
+export function getEffectiveFormat(modelId: string): ApiFormat | null {
+  if (/gemini/i.test(modelId)) return 'gemini';
+  if (/gpt-image|dall-e|openai/i.test(modelId)) return 'openai';
+  if (/claude/i.test(modelId)) return 'claude';
+  return null;
+}
+
+/**
+ * 获取最终生效的请求体格式：优先按模型名推断，推断不到则用 config.format
+ */
+export function resolveRequestFormat(config: ApiConfig): ApiFormat {
+  return getEffectiveFormat(config.model) ?? config.format;
 }
 
 // === 模型参数定义 ===

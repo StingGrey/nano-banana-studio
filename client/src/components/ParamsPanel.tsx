@@ -27,6 +27,7 @@ import {
   SAMPLERS, STYLES,
   type ParamDef,
   getModelParamProfile,
+  resolveRequestFormat,
 } from '@/lib/store';
 import { previewRequest } from '@/lib/api-service';
 import { useState, useMemo } from 'react';
@@ -416,7 +417,9 @@ export default function ParamsPanel() {
   const [customKey, setCustomKey] = useState('');
   const [customValue, setCustomValue] = useState('');
 
-  const format = activeConfig?.format || 'gemini';
+  const authFormat = activeConfig?.format || 'gemini';
+  // 请求格式由模型决定
+  const format = activeConfig ? resolveRequestFormat(activeConfig) : authFormat;
 
   const addCustomParam = () => {
     if (customKey.trim()) {
@@ -472,7 +475,7 @@ export default function ParamsPanel() {
                   <SlidersHorizontal size={16} className="text-primary" />
                 </motion.div>
                 <h2 className="font-bold text-sm font-display">参数设置</h2>
-                {/* API format badge */}
+                {/* API format badge — 显示实际请求格式 */}
                 <span className={cn(
                   "text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold",
                   format === 'gemini' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
@@ -481,6 +484,11 @@ export default function ParamsPanel() {
                 )}>
                   {format === 'gemini' ? 'Gemini' : format === 'openai' ? 'OpenAI' : 'Claude'}
                 </span>
+                {format !== authFormat && (
+                  <span className="text-[8px] px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-mono">
+                    模型推断
+                  </span>
+                )}
               </div>
               <Button
                 variant="ghost"
@@ -650,6 +658,11 @@ export default function ParamsPanel() {
                     >
                       {requestPreview ? (
                         <div className="space-y-2">
+                          {requestPreview.requestFormat !== authFormat && (
+                            <div className="text-[9px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                              认证：{authFormat} / 请求体：{requestPreview.requestFormat}
+                            </div>
+                          )}
                           <div>
                             <Label className="text-[10px] text-muted-foreground mb-1 block">端点</Label>
                             <div className="text-[9px] font-mono bg-muted/40 p-2 rounded-lg break-all leading-relaxed">
