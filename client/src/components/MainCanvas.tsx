@@ -60,19 +60,20 @@ export default function MainCanvas() {
     }));
 
     Promise.allSettled(readers).then((results) => {
-      const fulfilled = results
+      const successfulImages = results
         .filter((res): res is PromiseFulfilledResult<{ name: string; type: string; dataUrl: string }> => res.status === 'fulfilled')
         .map((res) => res.value)
         .filter((img) => img.dataUrl);
 
-      if (fulfilled.length > 0) {
+      if (successfulImages.length > 0) {
+        // 不限制参考图数量；并使用函数式更新避免异步竞态覆盖
         updateParams((prev) => ({
-          referenceImages: [...prev.referenceImages, ...fulfilled],
+          referenceImages: [...prev.referenceImages, ...successfulImages],
         }));
-        toast.success(`已添加 ${fulfilled.length} 张参考图 ✨`);
+        toast.success(`已添加 ${successfulImages.length} 张参考图 ✨`);
       }
 
-      const failedCount = results.length - fulfilled.length;
+      const failedCount = results.length - successfulImages.length;
       if (failedCount > 0) {
         toast.error(`${failedCount} 张图片添加失败，请重试`);
       }
