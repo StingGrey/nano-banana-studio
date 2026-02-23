@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// 使用原生滚动替代 ScrollArea 以确保移动端触摸滚动兼容性
 import { cn } from '@/lib/utils';
 import { type ApiFormat, GEMINI_MODELS, OPENAI_MODELS } from '@/lib/store';
 import { testConnection } from '@/lib/api-service';
@@ -137,7 +137,7 @@ export default function SettingsDialog() {
             </Button>
           </div>
 
-          <ScrollArea className="flex-1 p-5">
+          <div className="flex-1 overflow-y-auto p-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
             <div className="space-y-4">
               {apiConfigs.map((config, idx) => {
                 const info = FORMAT_INFO[config.format];
@@ -393,7 +393,7 @@ export default function SettingsDialog() {
                 添加新的 API 配置
               </motion.button>
             </div>
-          </ScrollArea>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

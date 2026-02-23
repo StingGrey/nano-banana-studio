@@ -278,6 +278,11 @@
   }
 }
 
+/* Touch scrolling fix for mobile */
+[style*="overflow"] {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

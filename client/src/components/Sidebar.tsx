@@ -10,7 +10,7 @@ import {
   Zap, Star, Trash2, Image as ImageIcon, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// 使用原生滚动替代 ScrollArea 以确保移动端触摸滚动兼容性
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -167,7 +167,7 @@ export default function Sidebar() {
                 <span className="text-[10px] text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-full font-mono">{gallery.length}</span>
               </div>
 
-              <ScrollArea className="flex-1">
+              <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                 <div className="space-y-1.5 pr-2">
                   <AnimatePresence>
                     {gallery.slice(0, 30).map((img, i) => (
@@ -234,7 +234,7 @@ export default function Sidebar() {
                     </motion.div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             {/* Footer */}
