@@ -434,6 +434,8 @@ function getPreviewHeaders(config: ApiConfig): Record<string, string> {
       break;
     case 'vertex':
       headers['Authorization'] = 'Bearer ***';
+    case 'vertex':
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
       break;
   }
 

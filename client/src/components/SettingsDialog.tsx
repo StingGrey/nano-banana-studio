@@ -43,6 +43,7 @@ const FORMAT_INFO: Record<ApiFormat, {
     placeholder: 'https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models',
     endpoint: '/{model}:generateContent',
     authDesc: 'Authorization: Bearer {ACCESS_TOKEN}（支持直接粘贴 Service Account JSON）',
+    authDesc: 'Authorization: Bearer {ACCESS_TOKEN}',
     docUrl: 'https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference',
   },
   openai: {
