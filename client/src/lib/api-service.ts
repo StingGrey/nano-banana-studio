@@ -17,6 +17,11 @@
  *   端点: POST /messages
  *   认证: x-api-key header + anthropic-version
  *   文档: https://docs.anthropic.com/en/docs/build-with-claude/vision
+ *
+ * Vertex AI Gemini API:
+ *   端点: POST /projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
+ *   认证: Authorization: Bearer {ACCESS_TOKEN}
+ *   文档: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
  */
 
 import type { ApiConfig, GenerationParams, ModelInfo } from './store';
@@ -28,6 +33,143 @@ export interface GenerationResult {
   error?: string;
   metadata?: Record<string, unknown>;
   revisedPrompt?: string;
+}
+
+
+type VertexServiceAccountCredential = {
+  type?: string;
+  client_email?: string;
+  private_key?: string;
+  token_uri?: string;
+  scope?: string;
+  scopes?: string | string[];
+  access_token?: string;
+};
+
+const vertexTokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+function base64UrlEncode(input: string): string {
+  return btoa(input)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const cleaned = pem
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s+/g, '');
+  const binary = atob(cleaned);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function looksLikeJsonCredential(raw: string): boolean {
+  const trimmed = raw.trim();
+  return trimmed.startsWith('{') && trimmed.endsWith('}');
+}
+
+function parseVertexCredential(raw: string): VertexServiceAccountCredential | null {
+  if (!looksLikeJsonCredential(raw)) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    return parsed as VertexServiceAccountCredential;
+  } catch {
+    return null;
+  }
+}
+
+async function signVertexJwt(payload: Record<string, unknown>, privateKeyPem: string): Promise<string> {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const dataToSign = `${encodedHeader}.${encodedPayload}`;
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(privateKeyPem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    key,
+    new TextEncoder().encode(dataToSign)
+  );
+
+  const sigBytes = new Uint8Array(signature);
+  let sigBinary = '';
+  sigBytes.forEach((b) => { sigBinary += String.fromCharCode(b); });
+  const encodedSig = base64UrlEncode(sigBinary);
+  return `${dataToSign}.${encodedSig}`;
+}
+
+async function getVertexAccessToken(apiKeyField: string): Promise<string> {
+  const trimmed = apiKeyField.trim();
+  const cached = vertexTokenCache.get(trimmed);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now + 15_000) {
+    return cached.token;
+  }
+
+  const cred = parseVertexCredential(trimmed);
+  if (!cred) {
+    // 普通 Bearer token
+    return trimmed;
+  }
+
+  if (cred.access_token) {
+    return cred.access_token;
+  }
+
+  if (!cred.client_email || !cred.private_key) {
+    throw new Error('Vertex JSON 凭证缺少 client_email 或 private_key');
+  }
+
+  const tokenUri = cred.token_uri || 'https://oauth2.googleapis.com/token';
+  const scope = Array.isArray(cred.scopes)
+    ? cred.scopes.join(' ')
+    : (cred.scopes || cred.scope || 'https://www.googleapis.com/auth/cloud-platform');
+
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const expiresAt = issuedAt + 3600;
+
+  const assertion = await signVertexJwt({
+    iss: cred.client_email,
+    scope,
+    aud: tokenUri,
+    iat: issuedAt,
+    exp: expiresAt,
+  }, cred.private_key);
+
+  const form = new URLSearchParams();
+  form.set('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
+  form.set('assertion', assertion);
+
+  const resp = await fetch(tokenUri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.access_token) {
+    const msg = data.error_description || data.error || `HTTP ${resp.status}`;
+    throw new Error(`Vertex JSON 凭证换取 Access Token 失败: ${msg}`);
+  }
+
+  const expiresInSec = typeof data.expires_in === 'number' ? data.expires_in : 3600;
+  vertexTokenCache.set(trimmed, {
+    token: data.access_token,
+    expiresAt: Date.now() + expiresInSec * 1000,
+  });
+
+  return data.access_token;
 }
 
 // ============================================================
@@ -247,7 +389,7 @@ function buildClaudeRequest(params: GenerationParams, config: ApiConfig) {
 // ============================================================
 // 请求头
 // ============================================================
-function getHeaders(config: ApiConfig): Record<string, string> {
+async function getHeaders(config: ApiConfig): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -263,6 +405,35 @@ function getHeaders(config: ApiConfig): Record<string, string> {
     case 'claude':
       headers['x-api-key'] = config.apiKey;
       headers['anthropic-version'] = '2023-06-01';
+      break;
+    case 'vertex': {
+      const token = await getVertexAccessToken(config.apiKey);
+      headers['Authorization'] = `Bearer ${token}`;
+      break;
+    }
+  }
+
+  return headers;
+}
+
+function getPreviewHeaders(config: ApiConfig): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  switch (config.format) {
+    case 'openai':
+      headers['Authorization'] = 'Bearer ***';
+      break;
+    case 'gemini':
+      headers['x-goog-api-key'] = '***';
+      break;
+    case 'claude':
+      headers['x-api-key'] = '***';
+      headers['anthropic-version'] = '2023-06-01';
+      break;
+    case 'vertex':
+      headers['Authorization'] = 'Bearer ***';
       break;
   }
 
@@ -292,6 +463,9 @@ function getEndpoint(config: ApiConfig, requestFormat: ApiConfig['format']): str
     case 'openai':
       return `${base}/images/generations`;
     case 'gemini':
+      if (config.format === 'vertex') {
+        return `${base}/${config.model || 'gemini-2.5-flash-image'}:generateContent`;
+      }
       return `${base}/models/${config.model || 'gemini-3-pro-image-preview'}:generateContent?key=${config.apiKey}`;
     case 'claude':
       return `${base}/messages`;
@@ -324,7 +498,8 @@ function extractImages(data: any, format: ApiConfig['format']): { images: string
         return { images, revisedPrompt };
       }
 
-      case 'gemini': {
+      case 'gemini':
+      case 'vertex': {
         const images: string[] = [];
         if (data.candidates) {
           for (const candidate of data.candidates) {
@@ -377,6 +552,7 @@ export async function generateImage(
         body = buildOpenAIRequest(params, config);
         break;
       case 'gemini':
+      case 'vertex':
         body = buildGeminiRequest(params, config);
         break;
       case 'claude':
@@ -385,7 +561,7 @@ export async function generateImage(
     }
 
     const endpoint = getEndpoint(config, requestFormat);
-    const headers = getHeaders(config); // 认证始终按 config.format
+    const headers = await getHeaders(config); // 认证始终按 config.format
 
     console.log(`[Nano Banana Studio] 认证格式: ${config.format}, 请求格式: ${requestFormat}`);
     console.log(`[Nano Banana Studio] 请求端点: ${endpoint}`);
@@ -436,7 +612,7 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
   try {
     const base = config.baseUrl.replace(/\/$/, '');
     let testUrl: string;
-    const headers = getHeaders(config);
+    const headers = await getHeaders(config);
 
     switch (config.format) {
       case 'openai':
@@ -447,6 +623,9 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
         break;
       case 'claude':
         testUrl = `${base}/messages`;
+        break;
+      case 'vertex':
+        testUrl = `${base}`;
         break;
       default:
         testUrl = base;
@@ -484,7 +663,7 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
 export async function fetchModels(config: ApiConfig): Promise<{ success: boolean; models: ModelInfo[]; error?: string }> {
   try {
     const base = config.baseUrl.replace(/\/$/, '');
-    const headers = getHeaders(config);
+    const headers = await getHeaders(config);
 
     switch (config.format) {
       case 'openai': {
@@ -536,6 +715,23 @@ export async function fetchModels(config: ApiConfig): Promise<{ success: boolean
         return { success: true, models };
       }
 
+
+      case 'vertex': {
+        // Vertex: GET /publishers/google/models
+        const response = await fetch(`${base}`, { headers });
+        if (!response.ok) {
+          return { success: false, models: [], error: `HTTP ${response.status}` };
+        }
+        const data = await response.json();
+        const models: ModelInfo[] = (data.publisherModels || data.models || []).map((m: any) => ({
+          id: (m.name || '').split('/').pop() || m.versionId || 'unknown-model',
+          name: m.displayName || (m.name || '').split('/').pop() || 'Unknown',
+          desc: m.description?.slice(0, 60) || undefined,
+          source: 'api' as const,
+        }));
+        return { success: true, models };
+      }
+
       default:
         return { success: false, models: [], error: '不支持的 API 格式' };
     }
@@ -560,6 +756,7 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
       body = buildOpenAIRequest(params, config);
       break;
     case 'gemini':
+    case 'vertex':
       body = buildGeminiRequest(params, config);
       break;
     case 'claude':
@@ -567,11 +764,7 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
       break;
   }
 
-  const headers = getHeaders(config);
-  const safeHeaders = { ...headers };
-  if (safeHeaders['Authorization']) safeHeaders['Authorization'] = 'Bearer sk-***';
-  if (safeHeaders['x-goog-api-key']) safeHeaders['x-goog-api-key'] = '***';
-  if (safeHeaders['x-api-key']) safeHeaders['x-api-key'] = '***';
+  const safeHeaders = getPreviewHeaders(config);
 
   const endpoint = getEndpoint(config, requestFormat).replace(config.apiKey, '***');
 
