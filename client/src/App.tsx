@@ -30,8 +30,8 @@ function App() {
             position="top-center"
             toastOptions={{
               style: {
-                borderRadius: '1rem',
-                fontFamily: "'Nunito', sans-serif",
+                borderRadius: '0.5rem',
+                fontFamily: "'Inter', sans-serif",
               },
             }}
           />

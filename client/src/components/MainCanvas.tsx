@@ -1,12 +1,12 @@
 /**
- * MainCanvas: Kawaii Bubble Pop Design — Nano Banana Studio
+ * MainCanvas — Nano Banana Studio
  * Central area with prompt input, generation controls, and image display
  */
 
 import { useStudio } from '@/contexts/StudioContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, Wand2, Download, Heart, Maximize2,
+  Wand2, Download, Heart, Maximize2,
   Copy, X, Loader2, ImageIcon, BookOpen, Trash2, Upload, Camera, Paperclip, FileImage
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,6 @@ import { toast } from 'sonner';
 import PromptLibrary from './PromptLibrary';
 import ImageViewer from './ImageViewer';
 import { resolveRequestFormat, type GeneratedImage } from '@/lib/store';
-
-const EMPTY_STATE_URL = 'https://private-us-east-1.manuscdn.com/sessionFile/yePiFU8GjRdBGPYX8liEt4/sandbox/tLQ6zULlYtQGokogVvqybz_1771829362991_na1fn_ZW1wdHktc3RhdGU.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUveWVQaUZVOEdqUmRCR1BZWDhsaUV0NC9zYW5kYm94L3RMUTZ6VUxsWXRRR29rb2dWdnF5YnpfMTc3MTgyOTM2Mjk5MV9uYTFmbl9aVzF3ZEhrdGMzUmhkR1UucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=YPNFRU2L4IApJUXQNRJrSjClQBUbLs7IoJTPHEdxje-WhPA5tAcPrqsgKtC2WelCvboHWrN~dio3MPLf23~YMgTeRttzg9M1YlM7Tg5UNu4XV-r6rkxehFmEayIyYIuEVwjr2RUTwpZJvm0~MbRwsVm3DYRV-lnAO-SMN2OgOViRQ7enUwqpJhvDhDlY~IqxsgvtiUx-N4QgYi8YVjdfhq5QX57-w5z3TX46dCTGQEHbKzR-uf6w15Qevc4XkIS9LnSXYO7zUo3AOsA-Wem2DEJIU41Cea-jdwcosqkRqVf69TpdyjxIiV~KLLu9K~ZUpL~pnTVzemyNmxkX-HjmlQ__';
 
 const PROMPT_SUGGESTIONS = [
   '一只可爱的猫咪坐在月亮上，梦幻水彩风格',
@@ -46,7 +44,7 @@ export default function MainCanvas() {
 
     const leftSlots = Math.max(0, 4 - params.referenceImages.length);
     if (leftSlots === 0) {
-      toast.warning('最多上传 4 张参考图哦');
+      toast.warning('最多上传 4 张参考图');
       event.target.value = '';
       return;
     }
@@ -75,7 +73,7 @@ export default function MainCanvas() {
 
       if (fulfilled.length > 0) {
         updateParams({ referenceImages: [...params.referenceImages, ...fulfilled] });
-        toast.success(`已添加 ${fulfilled.length} 张参考图 ✨`);
+        toast.success(`已添加 ${fulfilled.length} 张参考图`);
       }
 
       const failedCount = results.length - fulfilled.length;
@@ -109,7 +107,7 @@ export default function MainCanvas() {
     const result = await generate();
     if (result) {
       if (result.success) {
-        toast.success(`成功生成 ${result.images.length} 张图片！`);
+        toast.success(`成功生成 ${result.images.length} 张图片`);
       } else {
         toast.error(result.error || '生成失败');
       }
@@ -143,15 +141,13 @@ export default function MainCanvas() {
             <div className="w-full h-full overflow-auto">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max p-1">
                 <AnimatePresence mode="popLayout">
-                  {recentImages.map((img, i) => (
+                  {recentImages.map((img) => (
                     <motion.div
                       key={img.id}
-                      className="group relative rounded-2xl overflow-hidden glass-card cursor-pointer"
-                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ delay: i * 0.04, type: 'spring', stiffness: 300, damping: 25 }}
-                      whileHover={{ y: -6, boxShadow: '0 16px 48px oklch(0.75 0.08 30 / 25%)' }}
+                      className="group relative rounded-lg overflow-hidden border border-border bg-card cursor-pointer hover:shadow-sm transition-shadow"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
                       onClick={() => setSelectedImage(img)}
                       layout
                     >
@@ -159,59 +155,48 @@ export default function MainCanvas() {
                         <img
                           src={img.url}
                           alt={img.prompt}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-cover"
                           loading="lazy"
                         />
                       </div>
                       {/* Hover overlay */}
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <div className="absolute bottom-0 left-0 right-0 p-3">
                           <p className="text-white text-[10px] line-clamp-2 mb-2 leading-relaxed">{img.prompt}</p>
                           <div className="flex gap-1.5">
-                            <motion.button
-                              className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-colors"
-                              whileTap={{ scale: 0.85 }}
+                            <button
+                              className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors"
                               onClick={(e) => { e.stopPropagation(); toggleFavorite(img.id); }}
                             >
                               <Heart size={12} className={img.isFavorite ? "fill-red-400 text-red-400" : "text-white"} />
-                            </motion.button>
-                            <motion.button
-                              className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-colors"
-                              whileTap={{ scale: 0.85 }}
+                            </button>
+                            <button
+                              className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors"
                               onClick={(e) => { e.stopPropagation(); handleDownload(img.url, img.id); }}
                             >
                               <Download size={12} className="text-white" />
-                            </motion.button>
-                            <motion.button
-                              className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/40 transition-colors"
-                              whileTap={{ scale: 0.85 }}
+                            </button>
+                            <button
+                              className="p-1.5 rounded bg-white/20 hover:bg-white/40 transition-colors"
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(img.prompt); toast.success('提示词已复制'); }}
                             >
                               <Copy size={12} className="text-white" />
-                            </motion.button>
-                            <motion.button
-                              className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-red-500/40 transition-colors ml-auto"
-                              whileTap={{ scale: 0.85 }}
+                            </button>
+                            <button
+                              className="p-1.5 rounded bg-white/20 hover:bg-red-500/40 transition-colors ml-auto"
                               onClick={(e) => { e.stopPropagation(); removeFromGallery(img.id); }}
                             >
                               <Trash2 size={12} className="text-white" />
-                            </motion.button>
+                            </button>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
 
                       {/* Favorite badge */}
                       {img.isFavorite && (
-                        <motion.div
-                          className="absolute top-2 right-2"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 500 }}
-                        >
-                          <Heart size={14} className="fill-red-400 text-red-400 drop-shadow-lg" />
-                        </motion.div>
+                        <div className="absolute top-2 right-2">
+                          <Heart size={14} className="fill-red-400 text-red-400 drop-shadow" />
+                        </div>
                       )}
                     </motion.div>
                   ))}
@@ -219,71 +204,44 @@ export default function MainCanvas() {
               </div>
             </div>
           ) : (
-            <motion.div
-              className="text-center max-w-md"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <motion.img
-                src={EMPTY_STATE_URL}
-                alt="Empty state"
-                className="w-44 h-44 mx-auto mb-5 object-contain drop-shadow-lg"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <h3 className="text-xl font-bold text-foreground/70 mb-2" style={{ fontFamily: "'Fredoka', sans-serif" }}>
+            <div className="text-center max-w-md">
+              <ImageIcon size={48} className="mx-auto mb-4 text-muted-foreground/20" strokeWidth={1.5} />
+              <h3 className="text-lg font-medium text-foreground/70 mb-2">
                 开始你的创作之旅
               </h3>
               <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                输入提示词，让 Nano Banana Pro 为你绘制梦想中的画面
+                输入提示词，生成你想要的图片
               </p>
               {/* Prompt suggestions */}
               <div className="flex flex-wrap gap-2 justify-center">
                 {PROMPT_SUGGESTIONS.map((suggestion, i) => (
-                  <motion.button
+                  <button
                     key={i}
-                    className="px-3 py-1.5 rounded-full text-xs glass-card hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground"
+                    className="px-3 py-1.5 rounded-md text-xs border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                     onClick={() => updateParams({ prompt: suggestion })}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + i * 0.08 }}
-                    whileHover={{ scale: 1.05, y: -3 }}
-                    whileTap={{ scale: 0.95 }}
                   >
-                    <Sparkles size={10} className="inline mr-1.5 text-banana" />
                     {suggestion}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
 
         {/* Prompt Input Area */}
-        <motion.div
-          className="glass-card p-3 relative"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
+        <div className="border border-border rounded-lg bg-card p-3 relative">
           {/* Progress bar */}
           <AnimatePresence>
             {isGenerating && (
               <motion.div
-                className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl overflow-hidden"
+                className="absolute top-0 left-0 right-0 h-0.5 rounded-t-lg overflow-hidden"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${progress}%`,
-                    background: 'linear-gradient(90deg, oklch(0.85 0.08 30), oklch(0.82 0.1 290), oklch(0.9 0.12 90))',
-                    backgroundSize: '200% 100%',
-                    animation: 'shimmer 2s ease-in-out infinite',
-                  }}
+                  className="h-full bg-foreground"
+                  style={{ width: `${progress}%` }}
                 />
               </motion.div>
             )}
@@ -299,7 +257,7 @@ export default function MainCanvas() {
                 className="overflow-hidden mb-2"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold text-destructive/70 uppercase tracking-wider" style={{ fontFamily: "'Fredoka', sans-serif" }}>反向提示词</span>
+                  <span className="text-[10px] font-medium text-destructive/70 uppercase tracking-wider">反向提示词</span>
                   <button onClick={() => setShowNegPrompt(false)} className="text-muted-foreground hover:text-foreground transition-colors">
                     <X size={10} />
                   </button>
@@ -308,7 +266,7 @@ export default function MainCanvas() {
                   value={params.negativePrompt}
                   onChange={(e) => updateParams({ negativePrompt: e.target.value })}
                   placeholder="输入不想出现的元素，如：低质量, 模糊, 变形..."
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-destructive/5 border border-destructive/10 focus:border-destructive/30 focus:outline-none resize-none placeholder:text-muted-foreground/40 transition-colors"
+                  className="w-full px-3 py-2 text-xs rounded-md bg-destructive/5 border border-destructive/10 focus:border-destructive/30 focus:outline-none resize-none placeholder:text-muted-foreground/40 transition-colors"
                   rows={2}
                 />
               </motion.div>
@@ -339,7 +297,7 @@ export default function MainCanvas() {
                 value={params.prompt}
                 onChange={(e) => updateParams({ prompt: e.target.value })}
                 placeholder="描述你想要生成的图片..."
-                className="w-full px-4 py-3 pr-10 text-sm rounded-2xl bg-muted/30 border border-border/50 focus:border-primary/40 focus:outline-none resize-none placeholder:text-muted-foreground/50 min-h-[52px] max-h-[120px] transition-colors"
+                className="w-full px-4 py-3 pr-10 text-sm rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none resize-none placeholder:text-muted-foreground/50 min-h-[52px] max-h-[120px] transition-colors"
                 rows={2}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -349,19 +307,17 @@ export default function MainCanvas() {
                 }}
               />
               {/* Prompt library button */}
-              <motion.button
-                className="absolute right-2 top-2 p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              <button
+                className="absolute right-2 top-2 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setShowPromptLib(true)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
                 title="提示词灵感库"
               >
                 <BookOpen size={14} />
-              </motion.button>
+              </button>
 
               <div className="mt-2 flex items-center gap-2">
                 <button
-                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border/60 bg-background/50 hover:bg-primary/5 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                   type="button"
                 >
@@ -369,7 +325,7 @@ export default function MainCanvas() {
                   上传文件
                 </button>
                 <button
-                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border/60 bg-background/50 hover:bg-primary/5 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted transition-colors"
                   onClick={() => cameraInputRef.current?.click()}
                   type="button"
                 >
@@ -377,7 +333,7 @@ export default function MainCanvas() {
                   拍照
                 </button>
                 {params.referenceImages.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground/70 inline-flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
                     <Paperclip size={11} />
                     已添加 {params.referenceImages.length}/4
                   </span>
@@ -389,7 +345,7 @@ export default function MainCanvas() {
                   {params.referenceImages.map((img, idx) => (
                     <span
                       key={`${img.name}-${idx}`}
-                      className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary"
+                      className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded bg-muted text-foreground"
                     >
                       <FileImage size={11} />
                       <span className="max-w-[110px] truncate">{img.name}</span>
@@ -412,31 +368,24 @@ export default function MainCanvas() {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-7 text-[10px] rounded-full transition-colors",
+                  "h-7 text-[10px] rounded-md transition-colors",
                   showNegPrompt ? "bg-destructive/10 text-destructive" : ""
                 )}
                 onClick={() => setShowNegPrompt(!showNegPrompt)}
               >
                 反向
               </Button>
-              <motion.button
+              <button
                 className={cn(
                   "kawaii-btn flex items-center gap-2 text-sm whitespace-nowrap",
-                  isGenerating && "opacity-80 pointer-events-none"
+                  isGenerating && "opacity-60 pointer-events-none"
                 )}
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                whileHover={!isGenerating ? { scale: 1.05 } : {}}
-                whileTap={!isGenerating ? { scale: 0.95 } : {}}
               >
                 {isGenerating ? (
                   <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <Loader2 size={16} />
-                    </motion.div>
+                    <Loader2 size={16} className="animate-spin" />
                     <span>生成中</span>
                   </>
                 ) : (
@@ -445,7 +394,7 @@ export default function MainCanvas() {
                     <span>生成</span>
                   </>
                 )}
-              </motion.button>
+              </button>
             </div>
           </div>
 
@@ -455,11 +404,7 @@ export default function MainCanvas() {
               <span className="text-[10px] text-muted-foreground/60">
                 {activeConfig ? (
                   <span className="flex items-center gap-1">
-                    <motion.span
-                      className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"
-                      animate={{ opacity: [1, 0.4, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
                     {activeConfig.name}
                   </span>
                 ) : (
@@ -479,7 +424,7 @@ export default function MainCanvas() {
               Ctrl+Enter 发送
             </span>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Prompt Library Dialog */}

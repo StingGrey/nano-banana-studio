@@ -1,11 +1,11 @@
 /**
- * PromptLibrary: Kawaii Bubble Pop Design — Nano Banana Studio
+ * PromptLibrary — Nano Banana Studio
  * Prompt template library with categories
  */
 
 import { useStudio } from '@/contexts/StudioContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, BookOpen, Search } from 'lucide-react';
+import { X, BookOpen, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -20,13 +20,13 @@ interface PromptTemplate {
 }
 
 const CATEGORIES = [
-  { id: 'all', label: '全部', icon: '✨' },
-  { id: 'character', label: '角色', icon: '👤' },
-  { id: 'landscape', label: '风景', icon: '🏔' },
-  { id: 'animal', label: '动物', icon: '🐱' },
-  { id: 'abstract', label: '抽象', icon: '🎨' },
-  { id: 'food', label: '美食', icon: '🍰' },
-  { id: 'scifi', label: '科幻', icon: '🚀' },
+  { id: 'all', label: '全部' },
+  { id: 'character', label: '角色' },
+  { id: 'landscape', label: '风景' },
+  { id: 'animal', label: '动物' },
+  { id: 'abstract', label: '抽象' },
+  { id: 'food', label: '美食' },
+  { id: 'scifi', label: '科幻' },
 ];
 
 const TEMPLATES: PromptTemplate[] = [
@@ -83,22 +83,22 @@ export default function PromptLibrary({ open, onClose }: Props) {
             onClick={onClose}
           />
           <motion.div
-            className="relative w-full max-w-3xl max-h-[80vh] glass-card overflow-hidden flex flex-col"
-            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+            className="relative w-full max-w-3xl max-h-[80vh] bg-card border border-border rounded-lg overflow-hidden flex flex-col"
+            initial={{ scale: 0.95, y: 10, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 20, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            exit={{ scale: 0.95, y: 10, opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
             {/* Header */}
-            <div className="p-5 pb-3 border-b border-border/30">
+            <div className="p-5 pb-3 border-b border-border">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <BookOpen size={18} className="text-primary" />
-                  <h2 className="text-lg font-bold" style={{ fontFamily: "'Fredoka', sans-serif" }}>
+                  <BookOpen size={18} className="text-muted-foreground" />
+                  <h2 className="text-lg font-semibold">
                     提示词灵感库
                   </h2>
                 </div>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-muted/60">
+                <button onClick={onClose} className="p-2 rounded-md hover:bg-muted transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -111,7 +111,7 @@ export default function PromptLibrary({ open, onClose }: Props) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索提示词..."
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none"
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none"
                 />
               </div>
 
@@ -121,14 +121,14 @@ export default function PromptLibrary({ open, onClose }: Props) {
                   <button
                     key={cat.id}
                     className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                      "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
                       activeCategory === cat.id
-                        ? "bg-primary/15 text-primary border border-primary/20"
-                        : "bg-muted/30 text-muted-foreground hover:bg-muted/60 border border-transparent"
+                        ? "bg-muted border border-border text-foreground"
+                        : "text-muted-foreground hover:bg-muted/60 border border-transparent"
                     )}
                     onClick={() => setActiveCategory(cat.id)}
                   >
-                    {cat.icon} {cat.label}
+                    {cat.label}
                   </button>
                 ))}
               </div>
@@ -140,23 +140,20 @@ export default function PromptLibrary({ open, onClose }: Props) {
                 {filtered.map((template, i) => (
                   <motion.button
                     key={template.id}
-                    className="text-left p-3 rounded-2xl glass-card hover:shadow-lg transition-all group"
+                    className="text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                     onClick={() => handleSelect(template)}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    whileHover={{ y: -4, scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    transition={{ delay: i * 0.03, duration: 0.15 }}
                   >
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles size={10} className="text-banana" />
-                      <span className="text-xs font-bold" style={{ fontFamily: "'Fredoka', sans-serif" }}>{template.title}</span>
+                      <span className="text-xs font-semibold">{template.title}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground line-clamp-3 leading-relaxed">
                       {template.prompt}
                     </p>
                     {template.style && (
-                      <span className="inline-block mt-2 text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      <span className="inline-block mt-2 text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
                         {template.style}
                       </span>
                     )}

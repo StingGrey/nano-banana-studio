@@ -1,10 +1,9 @@
 /**
- * Home Page: Kawaii Bubble Pop Design — Nano Banana Studio
+ * Home Page — Nano Banana Studio
  * Main application page combining all components
  */
 
 import { StudioProvider, useStudio } from '@/contexts/StudioContext';
-import BubbleBackground from '@/components/BubbleBackground';
 import Sidebar from '@/components/Sidebar';
 import ParamsPanel from '@/components/ParamsPanel';
 import MainCanvas from '@/components/MainCanvas';
@@ -17,10 +16,7 @@ function StudioContent() {
   const { isGenerating, progress } = useStudio();
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated bubble background */}
-      <BubbleBackground />
-
+    <div className="min-h-screen relative overflow-hidden bg-background">
       {/* Main layout */}
       <Sidebar />
       <MainCanvas />

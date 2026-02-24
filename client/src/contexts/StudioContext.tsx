@@ -1,5 +1,5 @@
 /**
- * StudioContext: Kawaii Bubble Pop Design — Nano Banana Studio
+ * StudioContext — Nano Banana Studio
  * Global state for API configs, generation params, and gallery
  */
 

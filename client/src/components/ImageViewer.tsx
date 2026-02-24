@@ -1,5 +1,5 @@
 /**
- * ImageViewer: Kawaii Bubble Pop Design — Nano Banana Studio
+ * ImageViewer — Nano Banana Studio
  * Full-screen image viewer with details and actions
  */
 
@@ -71,14 +71,12 @@ export default function ImageViewer({ image, onClose, onToggleFavorite }: Props)
 
         {/* Top controls */}
         <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
-          <motion.button
-            className="p-2.5 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white"
+          <button
+            className="p-2.5 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 text-white transition-colors"
             onClick={onClose}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
           >
             <X size={18} />
-          </motion.button>
+          </button>
         </div>
 
         {/* Bottom toolbar */}
@@ -158,7 +156,7 @@ export default function ImageViewer({ image, onClose, onToggleFavorite }: Props)
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 20, opacity: 0 }}
             >
-              <h3 className="text-white font-bold text-sm mb-3" style={{ fontFamily: "'Fredoka', sans-serif" }}>图片详情</h3>
+              <h3 className="text-white font-semibold text-sm mb-3">图片详情</h3>
               <div className="space-y-3">
                 <div>
                   <span className="text-white/50 text-[10px] uppercase tracking-wider">提示词</span>
