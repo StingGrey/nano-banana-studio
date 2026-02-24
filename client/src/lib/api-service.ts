@@ -469,6 +469,8 @@ function getEndpoint(config: ApiConfig, requestFormat: ApiConfig['format']): str
         return `${base}/${config.model || 'gemini-2.5-flash-image'}:generateContent`;
       }
       return `${base}/models/${config.model || 'gemini-3-pro-image-preview'}:generateContent?key=${config.apiKey}`;
+    case 'vertex':
+      return `${base}/${config.model || 'gemini-2.5-flash-image'}:generateContent`;
     case 'claude':
       return `${base}/messages`;
     default:
