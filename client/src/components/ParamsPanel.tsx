@@ -1,7 +1,7 @@
 /**
- * ParamsPanel: Kawaii Bubble Pop Design — Nano Banana Studio
+ * ParamsPanel — Nano Banana Studio
  * Right panel with rich customization options for image generation
- * 
+ *
  * 根据当前 API 格式动态显示对应的官方参数：
  * - Gemini: aspectRatio, imageSize, responseModalities
  * - OpenAI: size, quality, n, background, output_format, compression, moderation
@@ -11,13 +11,12 @@
 import { useStudio } from '@/contexts/StudioContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, RotateCcw, Sparkles, Dice5,
+  ChevronLeft, ChevronRight, RotateCcw, Dice5,
   SlidersHorizontal, Palette, Maximize2, Layers, Wand2, Plus, X,
   Zap, Image as ImageIcon, Eye, FileType, Shield, MonitorSmartphone,
-  Ratio, Gem, MessageSquare, Code2
+  Ratio, Gem, MessageSquare, Code2, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// 使用原生滚动替代 ScrollArea 以确保移动端触摸滚动兼容性
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,14 +36,12 @@ function SectionHeader({ icon: Icon, title, badge, children }: { icon: any; titl
   return (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Icon size={12} className="text-primary" />
-        </div>
-        <span className="text-xs font-bold uppercase tracking-wider text-foreground/70 font-display">
+        <Icon size={14} className="text-muted-foreground" />
+        <span className="text-xs font-medium uppercase tracking-wider text-foreground/70">
           {title}
         </span>
         {badge && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold">
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
             {badge}
           </span>
         )}
@@ -62,7 +59,7 @@ function ParamSlider({ label, value, onChange, min, max, step = 1, unit = '' }: 
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">{label}</Label>
-        <span className="text-xs font-mono font-medium text-foreground/80 bg-muted/60 px-2 py-0.5 rounded-md min-w-[3rem] text-center">
+        <span className="text-xs font-mono font-medium text-foreground/80 bg-muted px-2 py-0.5 rounded min-w-[3rem] text-center">
           {typeof value === 'number' && step < 1 ? value.toFixed(2) : value}{unit}
         </span>
       </div>
@@ -72,7 +69,6 @@ function ParamSlider({ label, value, onChange, min, max, step = 1, unit = '' }: 
         min={min}
         max={max}
         step={step}
-        className="[&_[role=slider]]:bg-gradient-to-r [&_[role=slider]]:from-peach [&_[role=slider]]:to-lavender [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-md [&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:transition-transform [&_[role=slider]]:hover:scale-125"
       />
     </div>
   );
@@ -87,21 +83,19 @@ function OptionGrid<T extends string>({ options, value, onChange, cols = 2 }: {
   return (
     <div className={cn("grid gap-1.5", cols === 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-3" : "grid-cols-4")}>
       {options.map((opt) => (
-        <motion.button
+        <button
           key={opt.value}
           className={cn(
-            "p-2 rounded-xl text-left transition-all border",
+            "p-2 rounded-md text-left transition-colors border",
             value === opt.value
-              ? "bg-primary/15 border-primary/30 shadow-sm"
-              : "bg-muted/30 border-transparent hover:bg-muted/60"
+              ? "bg-muted border-border"
+              : "bg-transparent border-transparent hover:bg-muted/60"
           )}
           onClick={() => onChange(opt.value)}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
         >
-          <div className="text-xs font-bold font-display">{opt.label}</div>
+          <div className="text-xs font-medium">{opt.label}</div>
           {opt.desc && <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</div>}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
@@ -141,7 +135,6 @@ function DynamicModelParams({ params, updateParams, modelId, format }: {
     return Array.from(map.values());
   }, [profile]);
 
-  // 将带有 sectionTitle === '高级选项' 的分组单独处理为折叠面板
   const mainSections = sections.filter(s => s.title !== '高级选项');
   const advancedSection = sections.find(s => s.title === '高级选项');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -149,14 +142,8 @@ function DynamicModelParams({ params, updateParams, modelId, format }: {
   return (
     <>
       {mainSections.map((section, sIdx) => (
-        <motion.div
-          key={section.title}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 + sIdx * 0.05 }}
-        >
+        <div key={section.title}>
           <SectionHeader icon={getIcon(section.icon)} title={section.title} badge={section.badge} />
-          {/* 如果该 section 只有两个 number 类型的参数（如宽度+高度），用 grid 布局 */}
           {section.params.length === 2 && section.params.every(p => p.type === 'number') ? (
             <div className="grid grid-cols-2 gap-2">
               {section.params.map(p => (
@@ -167,7 +154,7 @@ function DynamicModelParams({ params, updateParams, modelId, format }: {
                     value={(params as any)[p.key]}
                     onChange={(e) => updateParams({ [p.key]: parseInt(e.target.value) || 0 })}
                     min={p.min} max={p.max}
-                    className="w-full mt-1 px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                    className="w-full mt-1 px-2 py-1.5 text-xs rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                   />
                 </div>
               ))}
@@ -184,38 +171,26 @@ function DynamicModelParams({ params, updateParams, modelId, format }: {
               {section.params[0].description}
             </p>
           )}
-        </motion.div>
+        </div>
       ))}
 
       {advancedSection && (
         <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
           <CollapsibleTrigger asChild>
-            <motion.button
-              className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-xl hover:bg-muted/60 transition-colors"
-              whileTap={{ scale: 0.98 }}
-            >
+            <button className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-md hover:bg-muted transition-colors">
               <span className="flex items-center gap-2 font-medium">
-                <Layers size={12} className="text-lavender" />
+                <Layers size={12} className="text-muted-foreground" />
                 高级选项
               </span>
-              <motion.div
-                animate={{ rotate: showAdvanced ? 180 : 0 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
-                <ChevronRight size={12} className="rotate-90" />
-              </motion.div>
-            </motion.button>
+              <ChevronRight size={12} className={cn("transition-transform", showAdvanced && "rotate-90")} />
+            </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4 mt-3 pl-1"
-            >
+            <div className="space-y-4 mt-3 pl-1">
               {advancedSection.params.map(p => (
                 <DynamicParamControl key={p.key} def={p} value={(params as any)[p.key]} onChange={(v) => updateParams({ [p.key]: v })} params={params} updateParams={updateParams} />
               ))}
-            </motion.div>
+            </div>
           </CollapsibleContent>
         </Collapsible>
       )}
@@ -231,7 +206,6 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
 }) {
   switch (def.type) {
     case 'grid': {
-      // aspectRatio 特殊渲染（带比例图形 + 自动/自定义）
       if (def.key === 'aspectRatio') {
         return (
           <div className="space-y-2">
@@ -244,28 +218,26 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
                 const isCustom = ar.value === 'custom';
 
                 return (
-                  <motion.button
+                  <button
                     key={ar.value}
                     className={cn(
-                      "flex items-center gap-2 p-2 rounded-xl transition-all border text-left",
+                      "flex items-center gap-2 p-2 rounded-md transition-colors border text-left",
                       value === ar.value
-                        ? "bg-primary/15 border-primary/30 shadow-sm"
-                        : "bg-muted/30 border-transparent hover:bg-muted/60"
+                        ? "bg-muted border-border"
+                        : "bg-transparent border-transparent hover:bg-muted/60"
                     )}
                     onClick={() => onChange(ar.value)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                   >
-                    <div className="w-6 h-6 rounded-md bg-background/70 border border-border/50 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded bg-muted border border-border flex items-center justify-center shrink-0">
                       {isAuto ? (
-                        <Sparkles size={12} className="text-primary" />
+                        <Sparkles size={12} className="text-muted-foreground" />
                       ) : isCustom ? (
-                        <SlidersHorizontal size={12} className="text-primary" />
+                        <SlidersHorizontal size={12} className="text-muted-foreground" />
                       ) : (
                         <div
                           className={cn(
                             "border-2 rounded-sm transition-colors",
-                            value === ar.value ? "border-primary" : "border-muted-foreground/30"
+                            value === ar.value ? "border-foreground" : "border-muted-foreground/30"
                           )}
                           style={{
                             width: `${Math.min(16, 16 * (ratio >= 1 ? 1 : ratio))}px`,
@@ -275,22 +247,22 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[10px] font-mono font-semibold leading-none">{ar.label}</div>
+                      <div className="text-[10px] font-mono font-medium leading-none">{ar.label}</div>
                       {ar.desc && <div className="text-[9px] text-muted-foreground mt-1 leading-tight">{ar.desc}</div>}
                     </div>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
 
             {value === 'custom' && (
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center bg-muted/20 rounded-xl p-2.5 border border-border/30">
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center bg-muted/20 rounded-md p-2.5 border border-border">
                 <input
                   type="number"
                   min={1}
                   value={params.customAspectRatioWidth || 1}
                   onChange={(e) => updateParams({ customAspectRatioWidth: Math.max(1, parseInt(e.target.value) || 1) })}
-                  className="w-full px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                  className="w-full px-2 py-1.5 text-xs rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                 />
                 <span className="text-xs text-muted-foreground font-mono">:</span>
                 <input
@@ -298,7 +270,7 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
                   min={1}
                   value={params.customAspectRatioHeight || 1}
                   onChange={(e) => updateParams({ customAspectRatioHeight: Math.max(1, parseInt(e.target.value) || 1) })}
-                  className="w-full px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                  className="w-full px-2 py-1.5 text-xs rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                 />
               </div>
             )}
@@ -306,24 +278,19 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
         );
       }
 
-      // openaiOutputFormat 特殊处理（显示压缩质量子选项）
       if (def.key === 'openaiOutputFormat') {
         return (
           <>
             <OptionGrid options={def.options || []} value={value} onChange={onChange} cols={def.cols || 2} />
             {(params.openaiOutputFormat === 'jpeg' || params.openaiOutputFormat === 'webp') && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mt-3"
-              >
+              <div className="mt-3">
                 <ParamSlider
                   label="压缩质量"
                   value={params.openaiOutputCompression}
                   onChange={(v) => updateParams({ openaiOutputCompression: v })}
                   min={0} max={100} unit="%"
                 />
-              </motion.div>
+              </div>
             )}
           </>
         );
@@ -344,7 +311,6 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
       );
 
     case 'number': {
-      // 种子的特殊处理（带随机按钮）
       if (def.key === 'seed') {
         return (
           <div>
@@ -354,32 +320,30 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
                 type="number"
                 value={value}
                 onChange={(e) => onChange(parseInt(e.target.value))}
-                className="flex-1 px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                className="flex-1 px-2 py-1.5 text-xs rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                 placeholder={def.description || '-1 为随机'}
               />
-              <motion.button
-                className="h-8 w-8 rounded-lg bg-muted/40 border border-border/50 flex items-center justify-center hover:bg-primary/10 hover:border-primary/30 transition-colors shrink-0"
+              <button
+                className="h-8 w-8 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
                 onClick={() => onChange(Math.floor(Math.random() * 2147483647))}
-                whileTap={{ scale: 0.9, rotate: 180 }}
                 title="随机种子"
               >
                 <Dice5 size={12} />
-              </motion.button>
+              </button>
             </div>
           </div>
         );
       }
 
-      // sampler 的特殊处理（下拉）
       if (def.key === 'sampler') {
         return (
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">{def.label || '采样器'}</Label>
             <Select value={value} onValueChange={onChange}>
-              <SelectTrigger className="h-8 text-xs rounded-xl bg-muted/30 border-border/50">
+              <SelectTrigger className="h-8 text-xs rounded-md border-border">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="rounded-md">
                 {SAMPLERS.map((s) => (
                   <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
                 ))}
@@ -402,7 +366,7 @@ function DynamicParamControl({ def, value, onChange, params, updateParams }: {
               onChange(v);
             }}
             min={def.min} max={def.max}
-            className="w-full mt-1 px-2 py-1.5 text-xs rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+            className="w-full mt-1 px-2 py-1.5 text-xs rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
           />
         </div>
       );
@@ -425,10 +389,10 @@ function ModelParamSummary({ params, modelId, format }: {
   );
 
   return (
-    <div className="p-3 rounded-xl bg-muted/20 border border-border/20">
+    <div className="p-3 rounded-md bg-muted/30 border border-border">
       <div className="flex items-center gap-1.5 mb-2">
         <ImageIcon size={10} className="text-muted-foreground" />
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider font-display">当前配置摘要</span>
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">当前配置摘要</span>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1">
         {modelId && (
@@ -464,7 +428,6 @@ export default function ParamsPanel() {
   }, [isMobile]);
 
   const authFormat = activeConfig?.format || 'gemini';
-  // 请求格式由模型决定
   const format = activeConfig ? resolveRequestFormat(activeConfig) : authFormat;
 
   const addCustomParam = () => {
@@ -483,7 +446,6 @@ export default function ParamsPanel() {
     updateParams({ customParams: next });
   };
 
-  // 请求预览
   const requestPreview = activeConfig ? previewRequest(params, activeConfig) : null;
 
   return (
@@ -491,11 +453,10 @@ export default function ParamsPanel() {
       {/* Toggle button */}
       <motion.button
         className={cn(
-          "fixed top-4 z-50 glass-card p-2 hover:scale-110 transition-transform",
+          "fixed top-4 z-50 p-2 rounded-md border border-border bg-card hover:bg-muted transition-colors",
           rightPanelOpen ? "right-[332px]" : "right-4"
         )}
         onClick={() => setRightPanelOpen(!rightPanelOpen)}
-        whileTap={{ scale: 0.9 }}
         layout
       >
         {rightPanelOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -507,23 +468,16 @@ export default function ParamsPanel() {
             initial={{ x: 340, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 340, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 bottom-0 w-[328px] glass-sidebar z-40 flex flex-col"
-            style={{ borderLeft: '1px solid oklch(0.9 0.03 300 / 30%)' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed right-0 top-0 bottom-0 w-[328px] z-40 flex flex-col bg-card border-l border-border"
           >
             {/* Header */}
             <div className="p-4 pb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <SlidersHorizontal size={16} className="text-primary" />
-                </motion.div>
-                <h2 className="font-bold text-sm font-display">参数设置</h2>
-                {/* API format badge — 显示实际请求格式 */}
+                <SlidersHorizontal size={16} className="text-muted-foreground" />
+                <h2 className="font-semibold text-sm">参数设置</h2>
                 <span className={cn(
-                  "text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold",
+                  "text-[9px] px-1.5 py-0.5 rounded font-mono font-medium",
                   format === 'gemini' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
                   format === 'openai' ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
                   "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
@@ -531,7 +485,7 @@ export default function ParamsPanel() {
                   {format === 'gemini' ? 'Gemini' : format === 'openai' ? 'OpenAI' : 'Claude'}
                 </span>
                 {format !== authFormat && (
-                  <span className="text-[8px] px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-mono">
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-mono">
                     模型推断
                   </span>
                 )}
@@ -539,7 +493,7 @@ export default function ParamsPanel() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs rounded-full hover:bg-destructive/10 hover:text-destructive"
+                className="h-7 text-xs rounded-md hover:bg-destructive/10 hover:text-destructive"
                 onClick={resetParams}
               >
                 <RotateCcw size={12} className="mr-1" />
@@ -550,73 +504,51 @@ export default function ParamsPanel() {
             <div className="flex-1 overflow-y-auto px-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
               <div className="space-y-5 pb-6">
 
-                {/* Style Preset - 通用 */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 }}
-                >
+                {/* Style Preset */}
+                <div>
                   <SectionHeader icon={Palette} title="风格预设" badge="通用" />
                   <div className="grid grid-cols-4 gap-1.5">
                     {STYLES.map((style) => (
-                      <motion.button
+                      <button
                         key={style.value}
                         className={cn(
-                          "px-2 py-1.5 rounded-xl text-[10px] font-medium transition-all border",
+                          "px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors border",
                           params.style === style.value
-                            ? "bg-primary/15 border-primary/30 text-primary shadow-sm"
-                            : "bg-muted/30 border-transparent text-muted-foreground hover:bg-muted/60"
+                            ? "bg-muted border-border text-foreground"
+                            : "bg-transparent border-transparent text-muted-foreground hover:bg-muted/60"
                         )}
                         onClick={() => updateParams({ style: style.value })}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                       >
                         {style.label}
-                      </motion.button>
+                      </button>
                     ))}
                   </div>
                   <p className="text-[9px] text-muted-foreground/50 mt-1.5 leading-relaxed">
                     风格会作为提示词前缀自动拼接到你的描述中
                   </p>
-                </motion.div>
+                </div>
 
-                {/* ============================================================ */}
                 {/* 模型驱动的参数渲染 */}
-                {/* ============================================================ */}
                 <DynamicModelParams params={params} updateParams={updateParams} modelId={activeConfig?.model || ''} format={format} />
 
-                {/* ============================================================ */}
-                {/* 自定义参数 - 所有格式通用 */}
-                {/* ============================================================ */}
+                {/* 自定义参数 */}
                 <Collapsible open={showCustom} onOpenChange={setShowCustom}>
                   <CollapsibleTrigger asChild>
-                    <motion.button
-                      className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-xl hover:bg-muted/60 transition-colors"
-                      whileTap={{ scale: 0.98 }}
-                    >
+                    <button className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-md hover:bg-muted transition-colors">
                       <span className="flex items-center gap-2 font-medium">
-                        <Zap size={12} className="text-banana" />
+                        <Zap size={12} className="text-muted-foreground" />
                         自定义参数
                         {Object.keys(params.customParams).length > 0 && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-banana/20 text-banana font-bold">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                             {Object.keys(params.customParams).length}
                           </span>
                         )}
                       </span>
-                      <motion.div
-                        animate={{ rotate: showCustom ? 180 : 0 }}
-                        transition={{ type: 'spring', stiffness: 300 }}
-                      >
-                        <ChevronRight size={12} className="rotate-90" />
-                      </motion.div>
-                    </motion.button>
+                      <ChevronRight size={12} className={cn("transition-transform", showCustom && "rotate-90")} />
+                    </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="space-y-2 mt-3 pl-1"
-                    >
+                    <div className="space-y-2 mt-3 pl-1">
                       <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
                         {format === 'gemini'
                           ? '自定义参数将合并到请求体。支持嵌套路径如 "generationConfig.temperature"'
@@ -626,24 +558,20 @@ export default function ParamsPanel() {
                         }
                       </p>
                       {Object.entries(params.customParams).map(([key, val]) => (
-                        <motion.div
+                        <div
                           key={key}
-                          className="flex items-center gap-1.5 bg-muted/30 rounded-lg p-2"
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          layout
+                          className="flex items-center gap-1.5 bg-muted/30 rounded-md p-2"
                         >
-                          <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded">{key}</span>
+                          <span className="text-[10px] font-mono font-medium text-foreground px-1.5 py-0.5 bg-muted rounded">{key}</span>
                           <span className="text-[10px] text-muted-foreground">=</span>
                           <span className="text-[10px] font-mono flex-1 truncate">{val}</span>
-                          <motion.button
+                          <button
                             onClick={() => removeCustomParam(key)}
-                            className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                            whileTap={{ scale: 0.8 }}
+                            className="p-1 rounded hover:bg-destructive/10 transition-colors"
                           >
                             <X size={10} className="text-muted-foreground hover:text-destructive" />
-                          </motion.button>
-                        </motion.div>
+                          </button>
+                        </div>
                       ))}
                       <div className="flex gap-1.5">
                         <input
@@ -651,7 +579,7 @@ export default function ParamsPanel() {
                           value={customKey}
                           onChange={(e) => setCustomKey(e.target.value)}
                           placeholder="参数名"
-                          className="flex-1 px-2 py-1.5 text-[10px] rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                          className="flex-1 px-2 py-1.5 text-[10px] rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                           onKeyDown={(e) => e.key === 'Enter' && addCustomParam()}
                         />
                         <input
@@ -659,65 +587,50 @@ export default function ParamsPanel() {
                           value={customValue}
                           onChange={(e) => setCustomValue(e.target.value)}
                           placeholder="值"
-                          className="flex-1 px-2 py-1.5 text-[10px] rounded-lg bg-muted/40 border border-border/50 focus:border-primary/50 focus:outline-none font-mono transition-colors"
+                          className="flex-1 px-2 py-1.5 text-[10px] rounded-md bg-muted/40 border border-border focus:border-foreground/30 focus:outline-none font-mono transition-colors"
                           onKeyDown={(e) => e.key === 'Enter' && addCustomParam()}
                         />
-                        <motion.button
-                          className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors shrink-0 disabled:opacity-40"
+                        <button
+                          className="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0 disabled:opacity-40"
                           onClick={addCustomParam}
                           disabled={!customKey.trim()}
-                          whileTap={{ scale: 0.9 }}
                         >
-                          <Plus size={10} className="text-primary" />
-                        </motion.button>
+                          <Plus size={10} />
+                        </button>
                       </div>
-                    </motion.div>
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* ============================================================ */}
                 {/* 请求预览 */}
-                {/* ============================================================ */}
                 <Collapsible open={showPreview} onOpenChange={setShowPreview}>
                   <CollapsibleTrigger asChild>
-                    <motion.button
-                      className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-xl hover:bg-muted/60 transition-colors"
-                      whileTap={{ scale: 0.98 }}
-                    >
+                    <button className="w-full flex items-center justify-between h-9 px-3 text-xs rounded-md hover:bg-muted transition-colors">
                       <span className="flex items-center gap-2 font-medium">
-                        <Code2 size={12} className="text-primary" />
+                        <Code2 size={12} className="text-muted-foreground" />
                         请求预览
                       </span>
-                      <motion.div
-                        animate={{ rotate: showPreview ? 180 : 0 }}
-                        transition={{ type: 'spring', stiffness: 300 }}
-                      >
-                        <ChevronRight size={12} className="rotate-90" />
-                      </motion.div>
-                    </motion.button>
+                      <ChevronRight size={12} className={cn("transition-transform", showPreview && "rotate-90")} />
+                    </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 pl-1"
-                    >
+                    <div className="mt-3 pl-1">
                       {requestPreview ? (
                         <div className="space-y-2">
                           {requestPreview.requestFormat !== authFormat && (
-                            <div className="text-[9px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                            <div className="text-[9px] px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
                               认证：{authFormat} / 请求体：{requestPreview.requestFormat}
                             </div>
                           )}
                           <div>
                             <Label className="text-[10px] text-muted-foreground mb-1 block">端点</Label>
-                            <div className="text-[9px] font-mono bg-muted/40 p-2 rounded-lg break-all leading-relaxed">
+                            <div className="text-[9px] font-mono bg-muted p-2 rounded-md break-all leading-relaxed">
                               POST {requestPreview.endpoint}
                             </div>
                           </div>
                           <div>
                             <Label className="text-[10px] text-muted-foreground mb-1 block">请求体</Label>
-                            <pre className="text-[9px] font-mono bg-muted/40 p-2 rounded-lg overflow-auto max-h-[200px] leading-relaxed whitespace-pre-wrap break-all">
+                            <pre className="text-[9px] font-mono bg-muted p-2 rounded-md overflow-auto max-h-[200px] leading-relaxed whitespace-pre-wrap break-all">
                               {JSON.stringify(requestPreview.body, null, 2)}
                             </pre>
                           </div>
@@ -725,11 +638,11 @@ export default function ParamsPanel() {
                       ) : (
                         <p className="text-[10px] text-muted-foreground/50">请先配置 API</p>
                       )}
-                    </motion.div>
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Quick info - 模型驱动的配置摘要 */}
+                {/* Quick info */}
                 <ModelParamSummary params={params} modelId={activeConfig?.model || ''} format={format} />
 
               </div>

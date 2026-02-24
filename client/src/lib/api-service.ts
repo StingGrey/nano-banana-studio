@@ -1,5 +1,5 @@
 /**
- * API Service: Kawaii Bubble Pop Design — Nano Banana Studio
+ * API Service — Nano Banana Studio
  * 
  * 严格按照各平台官方文档构建 API 请求：
  * 

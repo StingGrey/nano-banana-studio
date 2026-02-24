@@ -1,5 +1,5 @@
 /**
- * Store: Kawaii Bubble Pop Design — Nano Banana Studio
+ * Store — Nano Banana Studio
  * Central state management using React context + localStorage persistence
  * 
  * API 参数严格遵循各平台官方文档：

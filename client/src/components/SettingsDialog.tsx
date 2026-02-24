@@ -1,11 +1,6 @@
 /**
- * SettingsDialog: Kawaii Bubble Pop Design — Nano Banana Studio
+ * SettingsDialog — Nano Banana Studio
  * Full API configuration management dialog
- * 
- * 修复移动端触摸交互：
- * - 使用 onPointerDown + stopPropagation 防止事件冒泡到 backdrop
- * - 所有交互元素使用 native button/select 确保移动端可点击
- * - 弹窗内容使用原生 overflow-y-auto 滚动
  */
 
 import { useStudio } from '@/contexts/StudioContext';
@@ -102,33 +97,30 @@ export default function SettingsDialog() {
 
   return (
     <AnimatePresence>
-      {/* Full-screen overlay */}
       <motion.div
         className="fixed inset-0 z-[100]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        {/* Backdrop - clicking closes dialog */}
         <div
           className="absolute inset-0 bg-black/30 backdrop-blur-sm"
           onClick={() => setSettingsOpen(false)}
         />
 
-        {/* Dialog container - centered */}
         <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
           <motion.div
-            className="relative w-full max-w-2xl max-h-[85vh] glass-card flex flex-col pointer-events-auto"
-            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+            className="relative w-full max-w-2xl max-h-[85vh] bg-card border border-border rounded-lg shadow-lg flex flex-col pointer-events-auto"
+            initial={{ scale: 0.95, y: 10, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 20, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            exit={{ scale: 0.95, y: 10, opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 pb-3 border-b border-border/30 shrink-0">
+            <div className="flex items-center justify-between p-5 pb-3 border-b border-border shrink-0">
               <div>
-                <h2 className="text-lg font-bold" style={{ fontFamily: "'Fredoka', sans-serif" }}>
+                <h2 className="text-lg font-semibold">
                   API 配置管理
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -138,50 +130,45 @@ export default function SettingsDialog() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full shrink-0"
+                className="rounded-md shrink-0"
                 onClick={() => setSettingsOpen(false)}
               >
                 <X size={18} />
               </Button>
             </div>
 
-            {/* Scrollable content - native scroll for mobile touch */}
+            {/* Scrollable content */}
             <div
               className="flex-1 overflow-y-auto p-5"
               style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
             >
               <div className="space-y-4">
-                {apiConfigs.map((config, idx) => {
+                {apiConfigs.map((config) => {
                   const info = FORMAT_INFO[config.format];
                   const isActive = activeConfig?.id === config.id;
 
                   return (
-                    <motion.div
+                    <div
                       key={config.id}
                       className={cn(
-                        "glass-card p-4 space-y-3 transition-all",
-                        isActive && "ring-2 ring-primary/30"
+                        "border border-border rounded-lg p-4 space-y-3 transition-colors",
+                        isActive && "ring-2 ring-foreground/20"
                       )}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      layout
                     >
                       {/* Config header */}
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0", info.color)}>
+                          <span className={cn("text-[10px] px-2 py-0.5 rounded font-mono font-medium shrink-0", info.color)}>
                             {info.label}
                           </span>
                           <input
                             type="text"
                             value={config.name}
                             onChange={(e) => updateApiConfig(config.id, { name: e.target.value })}
-                            className="text-sm font-bold bg-transparent border-none focus:outline-none focus:ring-0 p-0 min-w-0 flex-1"
-                            style={{ fontFamily: "'Fredoka', sans-serif" }}
+                            className="text-sm font-semibold bg-transparent border-none focus:outline-none focus:ring-0 p-0 min-w-0 flex-1"
                           />
                           {isActive && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-bold shrink-0">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium shrink-0">
                               当前使用
                             </span>
                           )}
@@ -190,7 +177,7 @@ export default function SettingsDialog() {
                           {!isActive && (
                             <button
                               type="button"
-                              className="h-7 px-2 text-xs rounded-full bg-transparent hover:bg-muted/60 transition-colors flex items-center gap-1"
+                              className="h-7 px-2 text-xs rounded-md hover:bg-muted transition-colors flex items-center gap-1"
                               onClick={() => setActiveConfig(config.id)}
                             >
                               <Check size={12} />
@@ -199,14 +186,12 @@ export default function SettingsDialog() {
                           )}
                           <button
                             type="button"
-                            className="h-7 px-2 text-xs rounded-full bg-transparent hover:bg-muted/60 transition-colors flex items-center gap-1 disabled:opacity-40"
+                            className="h-7 px-2 text-xs rounded-md hover:bg-muted transition-colors flex items-center gap-1 disabled:opacity-40"
                             onClick={() => handleTest(config)}
                             disabled={testingId === config.id || !config.baseUrl || !config.apiKey}
                           >
                             {testingId === config.id ? (
-                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                                <TestTube size={12} />
-                              </motion.div>
+                              <TestTube size={12} className="animate-spin" />
                             ) : (
                               <TestTube size={12} />
                             )}
@@ -215,7 +200,7 @@ export default function SettingsDialog() {
                           {apiConfigs.length > 1 && (
                             <button
                               type="button"
-                              className="h-7 w-7 rounded-full bg-transparent hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center justify-center"
+                              className="h-7 w-7 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center justify-center"
                               onClick={() => deleteApiConfig(config.id)}
                             >
                               <Trash2 size={12} />
@@ -224,7 +209,7 @@ export default function SettingsDialog() {
                         </div>
                       </div>
 
-                      {/* Format selection - native select for mobile */}
+                      {/* Format selection */}
                       <div>
                         <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
                           <Globe size={10} />
@@ -244,15 +229,14 @@ export default function SettingsDialog() {
                               model: defaultModel,
                             });
                           }}
-                          className="w-full h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none appearance-auto"
+                          className="w-full h-9 px-3 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none appearance-auto"
                         >
                           {FORMAT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))}
                         </select>
 
-                        {/* Format info box */}
-                        <div className="mt-2 p-2.5 rounded-xl bg-muted/20 border border-border/20 space-y-1">
+                        <div className="mt-2 p-2.5 rounded-md bg-muted/30 border border-border space-y-1">
                           <div className="flex items-center gap-1.5">
                             <Info size={10} className="text-muted-foreground shrink-0" />
                             <span className="text-[10px] text-muted-foreground">
@@ -269,7 +253,7 @@ export default function SettingsDialog() {
                             href={info.docUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                            className="flex items-center gap-1 text-[10px] text-foreground/60 hover:text-foreground hover:underline"
                           >
                             <ExternalLink size={9} />
                             查看官方文档
@@ -288,7 +272,7 @@ export default function SettingsDialog() {
                           value={config.baseUrl}
                           onChange={(e) => updateApiConfig(config.id, { baseUrl: e.target.value })}
                           placeholder={info.placeholder}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                          className="w-full px-3 py-2 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none font-mono placeholder:text-muted-foreground/40"
                         />
                       </div>
 
@@ -308,18 +292,17 @@ export default function SettingsDialog() {
                               : rf === 'openai' ? '/images/generations'
                               : '/messages';
                           })()}
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                          className="w-full px-3 py-2 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none font-mono placeholder:text-muted-foreground/40"
                         />
                         <p className="text-[9px] text-muted-foreground/50 mt-1">
-                          支持 <code className="text-[8px] bg-muted/40 px-1 rounded">{'{model}'}</code> 和 <code className="text-[8px] bg-muted/40 px-1 rounded">{'{apiKey}'}</code> 变量。留空时按模型名自动选择端点格式
+                          支持 <code className="text-[8px] bg-muted px-1 rounded">{'{model}'}</code> 和 <code className="text-[8px] bg-muted px-1 rounded">{'{apiKey}'}</code> 变量。留空时按模型名自动选择端点格式
                         </p>
-                        {/* 显示当前生效的请求格式 */}
                         {(() => {
                           const rf = resolveRequestFormat(config);
                           if (rf !== config.format) {
                             return (
-                              <p className="text-[9px] mt-1.5 px-2 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-                                检测到模型 <span className="font-mono font-bold">{config.model}</span> 为 <span className="font-bold">{rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'}</span> 格式，请求体将自动使用 {rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'} 格式构建
+                              <p className="text-[9px] mt-1.5 px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                                检测到模型 <span className="font-mono font-medium">{config.model}</span> 为 <span className="font-medium">{rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'}</span> 格式，请求体将自动使用 {rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'} 格式构建
                               </p>
                             );
                           }
@@ -343,20 +326,20 @@ export default function SettingsDialog() {
                               config.format === 'openai' ? 'sk-...' :
                               'sk-ant-...'
                             }
-                            className="w-full px-3 py-2 pr-16 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                            className="w-full px-3 py-2 pr-16 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none font-mono placeholder:text-muted-foreground/40"
                           />
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
                             <button
                               type="button"
                               onClick={() => toggleKeyVisibility(config.id)}
-                              className="p-1.5 rounded-lg hover:bg-muted/60 active:bg-muted/80"
+                              className="p-1.5 rounded hover:bg-muted"
                             >
                               {showKeys[config.id] ? <EyeOff size={12} /> : <Eye size={12} />}
                             </button>
                             <button
                               type="button"
                               onClick={() => { navigator.clipboard.writeText(config.apiKey); toast.success('已复制'); }}
-                              className="p-1.5 rounded-lg hover:bg-muted/60 active:bg-muted/80"
+                              className="p-1.5 rounded hover:bg-muted"
                             >
                               <Copy size={12} />
                             </button>
@@ -380,41 +363,35 @@ export default function SettingsDialog() {
                               config.format === 'openai' ? 'gpt-image-1' :
                               'claude-3-opus-20240229'
                             }
-                            className="flex-1 px-3 py-2 text-xs rounded-xl bg-muted/30 border border-border/50 focus:border-primary/50 focus:outline-none font-mono placeholder:text-muted-foreground/40"
+                            className="flex-1 px-3 py-2 text-xs rounded-md bg-muted/30 border border-border focus:border-foreground/30 focus:outline-none font-mono placeholder:text-muted-foreground/40"
                           />
                           <button
                             type="button"
-                            className="h-9 px-2.5 rounded-xl bg-muted/30 border border-border/50 hover:bg-primary/10 hover:border-primary/30 transition-colors flex items-center gap-1 text-xs disabled:opacity-40 shrink-0"
+                            className="h-9 px-2.5 rounded-md border border-border hover:bg-muted transition-colors flex items-center gap-1 text-xs disabled:opacity-40 shrink-0"
                             onClick={() => refreshModels(config.id)}
                             disabled={fetchingModels[config.id] || !config.baseUrl || !config.apiKey}
                             title="从 API 获取可用模型"
                           >
-                            <motion.div
-                              animate={fetchingModels[config.id] ? { rotate: 360 } : {}}
-                              transition={fetchingModels[config.id] ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
-                            >
-                              <RefreshCw size={12} />
-                            </motion.div>
+                            <RefreshCw size={12} className={fetchingModels[config.id] ? "animate-spin" : ""} />
                           </button>
                         </div>
 
-                        {/* 从 API 获取的模型列表 */}
                         {availableModels[config.id] && availableModels[config.id].length > 0 ? (
                           <div className="mt-2">
                             <span className="text-[9px] text-muted-foreground/50 leading-6 flex items-center gap-1 mb-1">
                               <RefreshCw size={8} />
                               从 API 获取（{availableModels[config.id].length} 个模型）
                             </span>
-                            <div className="max-h-[120px] overflow-y-auto rounded-xl border border-border/30 bg-muted/10" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            <div className="max-h-[120px] overflow-y-auto rounded-md border border-border" style={{ WebkitOverflowScrolling: 'touch' }}>
                               {availableModels[config.id].map((m) => (
                                 <button
                                   key={m.id}
                                   type="button"
                                   className={cn(
-                                    "w-full text-left px-2.5 py-1.5 text-[10px] transition-all border-b border-border/10 last:border-b-0",
+                                    "w-full text-left px-2.5 py-1.5 text-[10px] transition-colors border-b border-border last:border-b-0",
                                     config.model === m.id
-                                      ? "bg-primary/15 text-primary font-bold"
-                                      : "hover:bg-muted/40 text-muted-foreground active:bg-muted/60"
+                                      ? "bg-muted text-foreground font-medium"
+                                      : "hover:bg-muted/40 text-muted-foreground"
                                   )}
                                   onClick={() => updateApiConfig(config.id, { model: m.id })}
                                 >
@@ -425,7 +402,6 @@ export default function SettingsDialog() {
                             </div>
                           </div>
                         ) : (
-                          /* 内置推荐模型（兜底） */
                           (config.format === 'gemini' || config.format === 'openai') && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               <span className="text-[9px] text-muted-foreground/50 mr-1 leading-6">推荐：</span>
@@ -434,10 +410,10 @@ export default function SettingsDialog() {
                                   key={m.value}
                                   type="button"
                                   className={cn(
-                                    "text-[10px] px-2.5 py-1 rounded-full border transition-all active:scale-95",
+                                    "text-[10px] px-2.5 py-1 rounded-md border transition-colors",
                                     config.model === m.value
-                                      ? "bg-primary/15 border-primary/30 text-primary font-bold"
-                                      : "bg-muted/30 border-border/30 text-muted-foreground hover:bg-muted/60 active:bg-muted/80"
+                                      ? "bg-muted border-border text-foreground font-medium"
+                                      : "bg-transparent border-border text-muted-foreground hover:bg-muted"
                                   )}
                                   onClick={() => updateApiConfig(config.id, { model: m.value })}
                                   title={m.desc}
@@ -450,19 +426,19 @@ export default function SettingsDialog() {
                         )}
 
                         {fetchingModels[config.id] && (
-                          <p className="text-[9px] text-primary/60 mt-1 animate-pulse">
+                          <p className="text-[9px] text-muted-foreground mt-1 animate-pulse">
                             正在从 API 获取模型列表...
                           </p>
                         )}
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
 
                 {/* Add button */}
                 <button
                   type="button"
-                  className="w-full p-4 rounded-2xl border-2 border-dashed border-border/50 hover:border-primary/30 hover:bg-primary/5 active:bg-primary/10 transition-all flex items-center justify-center gap-2 text-sm text-muted-foreground"
+                  className="w-full p-4 rounded-lg border-2 border-dashed border-border hover:border-foreground/20 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-sm text-muted-foreground"
                   onClick={handleAdd}
                 >
                   <Plus size={16} />
