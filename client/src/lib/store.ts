@@ -6,9 +6,10 @@
  * - Gemini: https://ai.google.dev/gemini-api/docs/image-generation
  * - OpenAI: https://developers.openai.com/api/docs/guides/image-generation
  * - Claude: https://docs.anthropic.com/en/docs/build-with-claude/vision
+ * - Vertex AI: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
  */
 
-export type ApiFormat = 'openai' | 'gemini' | 'claude';
+export type ApiFormat = 'openai' | 'gemini' | 'claude' | 'vertex';
 
 export interface ApiConfig {
   id: string;
@@ -107,6 +108,10 @@ export interface GenerationParams {
   // moderation: "auto", "low"
   openaiModeration: string;
 
+  // === 通用并发参数 ===
+  // 通过并发请求实现一次生成多张（适用于不支持 n 的 API）
+  concurrentGenerations: number;
+
   // === 通用 / Stable Diffusion 兼容参数 ===
   // 这些参数用于兼容 SD 类 API 或自定义端点
   width: number;
@@ -171,6 +176,7 @@ export const DEFAULT_GENERATION_PARAMS: GenerationParams = {
   openaiOutputFormat: 'png',
   openaiOutputCompression: 100,
   openaiModeration: 'auto',
+  concurrentGenerations: 1,
 
   // SD-compatible defaults
   width: 1024,
@@ -345,7 +351,15 @@ const GEMINI_PRO_PARAMS: ParamDef[] = [
   ...GEMINI_COMMON_PARAMS.slice(1), // responseModalities
 ];
 
+const CONCURRENT_GENERATION_PARAM: ParamDef = {
+  key: 'concurrentGenerations', label: '并发生成数', type: 'slider',
+  sectionTitle: '生成数量', icon: 'Layers', sectionBadge: '通用',
+  min: 1, max: 8,
+  description: '通过并发请求实现多图生成',
+};
+
 const OPENAI_FULL_PARAMS: ParamDef[] = [
+  CONCURRENT_GENERATION_PARAM,
   {
     key: 'openaiSize', label: '图片尺寸', type: 'grid',
     sectionTitle: '图片尺寸', icon: 'Maximize2', sectionBadge: 'OpenAI',
@@ -399,6 +413,7 @@ const DALLE3_PARAMS: ParamDef[] = [
 ];
 
 const SD_COMPAT_PARAMS: ParamDef[] = [
+  CONCURRENT_GENERATION_PARAM,
   {
     key: 'width', label: '宽度', type: 'number',
     sectionTitle: '生成参数', icon: 'Wand2', sectionBadge: '通用',
@@ -458,9 +473,9 @@ const SD_ADVANCED_PARAMS: ParamDef[] = [
 // 按顺序匹配，首个匹配的生效
 const MODEL_PARAM_REGISTRY: { pattern: RegExp; profile: ModelParamProfile }[] = [
   // Gemini 3 Pro - 支持 imageSize (4K)
-  { pattern: /gemini-3.*pro|pro.*image/i, profile: { params: GEMINI_PRO_PARAMS } },
+  { pattern: /gemini-3.*pro|pro.*image/i, profile: { params: [CONCURRENT_GENERATION_PARAM, ...GEMINI_PRO_PARAMS] } },
   // Gemini 通用（Flash 等）
-  { pattern: /gemini/i, profile: { params: GEMINI_COMMON_PARAMS } },
+  { pattern: /gemini/i, profile: { params: [CONCURRENT_GENERATION_PARAM, ...GEMINI_COMMON_PARAMS] } },
   // DALL-E 3
   { pattern: /dall-e-3/i, profile: { params: DALLE3_PARAMS } },
   // OpenAI GPT Image 系列
@@ -471,9 +486,10 @@ const MODEL_PARAM_REGISTRY: { pattern: RegExp; profile: ModelParamProfile }[] = 
 
 // 各 format 的默认 profile（未匹配已知模型时使用）
 const FORMAT_DEFAULT_PROFILES: Record<ApiFormat, ModelParamProfile> = {
-  gemini: { params: GEMINI_COMMON_PARAMS },
+  gemini: { params: [CONCURRENT_GENERATION_PARAM, ...GEMINI_COMMON_PARAMS] },
   openai: { params: OPENAI_FULL_PARAMS },
   claude: { params: [...SD_COMPAT_PARAMS, ...SD_ADVANCED_PARAMS] },
+  vertex: { params: [CONCURRENT_GENERATION_PARAM, ...GEMINI_COMMON_PARAMS] },
 };
 
 /**

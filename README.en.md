@@ -11,7 +11,7 @@ This is a cute-looking yet production-oriented AI image generation studio UI.
 
 It gives you one place to:
 
-- Manage multiple API configs (Gemini / OpenAI / Claude-compatible)
+- Manage multiple API configs (Gemini / Vertex / OpenAI / Claude-compatible)
 - Fetch available models dynamically
 - Tune generation parameters visually
 - Generate images and manage a gallery

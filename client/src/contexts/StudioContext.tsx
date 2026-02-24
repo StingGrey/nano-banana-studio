@@ -177,11 +177,19 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     }, 500);
 
     try {
-      const result = await generateImage(params, activeConfig);
+      const concurrentCount = Math.max(1, Math.min(8, Math.floor(params.concurrentGenerations || 1)));
+      const results = await Promise.all(
+        Array.from({ length: concurrentCount }, () => generateImage(params, activeConfig))
+      );
+
+      const allImages = results.flatMap(r => r.success ? r.images : []);
+      const firstError = results.find(r => !r.success)?.error;
+      const firstRevisedPrompt = results.find(r => r.revisedPrompt)?.revisedPrompt;
+
       setProgress(100);
 
-      if (result.success && result.images.length > 0) {
-        const newImages: GeneratedImage[] = result.images.map(url => ({
+      if (allImages.length > 0) {
+        const newImages: GeneratedImage[] = allImages.map(url => ({
           id: nanoid(),
           url,
           prompt: params.prompt,
@@ -193,7 +201,12 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
         setGallery(prev => [...newImages, ...prev]);
       }
 
-      return result;
+      return {
+        success: allImages.length > 0,
+        images: allImages,
+        error: allImages.length > 0 ? undefined : (firstError || '全部并发请求均失败'),
+        revisedPrompt: firstRevisedPrompt,
+      };
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {

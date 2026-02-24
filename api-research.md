@@ -161,3 +161,23 @@ Claude 本身不是图片生成模型。它没有原生的图片生成 API。
 | 批量生成 | 不直接支持 | n 参数 | 不直接支持 |
 | 透明背景 | 不支持 | background: transparent | 取决于服务 |
 | 输出格式 | 固定 PNG base64 | png/jpeg/webp | 取决于服务 |
+
+
+---
+
+## 4. Vertex AI Gemini API（Google Cloud）
+
+### REST API 端点
+- `POST https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent`
+- 认证: `Authorization: Bearer ACCESS_TOKEN`（OAuth2 / Service Account 颁发的短期 token）
+
+### 请求体
+- 与 Gemini `generateContent` 基本一致：`contents` + `generationConfig`
+- 图片相关参数同样使用 `generationConfig.imageConfig.aspectRatio / imageSize`
+
+### 模型列举
+- `GET https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models`
+
+### 认证说明（前端可配）
+- 可直接粘贴短期 Access Token 到 `apiKey` 字段（作为 Bearer token）
+- 若需长期稳定调用，建议由后端代理签发 token，再由前端透传
