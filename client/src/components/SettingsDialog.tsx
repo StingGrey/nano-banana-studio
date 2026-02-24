@@ -42,6 +42,7 @@ const FORMAT_INFO: Record<ApiFormat, {
     desc: 'Google Vertex AI Gemini（generateContent）',
     placeholder: 'https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models',
     endpoint: '/{model}:generateContent',
+    authDesc: 'Authorization: Bearer {ACCESS_TOKEN}（支持直接粘贴 Service Account JSON）',
     authDesc: 'Authorization: Bearer {ACCESS_TOKEN}',
     docUrl: 'https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference',
   },
@@ -335,7 +336,7 @@ export default function SettingsDialog() {
                             onChange={(e) => updateApiConfig(config.id, { apiKey: e.target.value })}
                             placeholder={
                               config.format === 'gemini' ? 'AIza...' :
-                              config.format === 'vertex' ? 'ya29.... (OAuth Access Token)' :
+                              config.format === 'vertex' ? 'ya29.... 或 {"type":"service_account",...}' :
                               config.format === 'openai' ? 'sk-...' :
                               'sk-ant-...'
                             }

@@ -180,4 +180,5 @@ Claude 本身不是图片生成模型。它没有原生的图片生成 API。
 
 ### 认证说明（前端可配）
 - 可直接粘贴短期 Access Token 到 `apiKey` 字段（作为 Bearer token）
+- 也可粘贴 Service Account JSON（含 `client_email` + `private_key`），前端用 JWT Bearer Flow 自动换取 Access Token
 - 若需长期稳定调用，建议由后端代理签发 token，再由前端透传
