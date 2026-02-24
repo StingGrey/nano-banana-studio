@@ -36,6 +36,15 @@ const FORMAT_INFO: Record<ApiFormat, {
     authDesc: 'x-goog-api-key header 或 ?key= 查询参数',
     docUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
   },
+  vertex: {
+    label: 'Vertex',
+    color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    desc: 'Google Vertex AI Gemini（generateContent）',
+    placeholder: 'https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models',
+    endpoint: '/{model}:generateContent',
+    authDesc: 'Authorization: Bearer {ACCESS_TOKEN}',
+    docUrl: 'https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference',
+  },
   openai: {
     label: 'OpenAI',
     color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -58,6 +67,7 @@ const FORMAT_INFO: Record<ApiFormat, {
 
 const FORMAT_OPTIONS: { value: ApiFormat; label: string }[] = [
   { value: 'gemini', label: 'Gemini - Google Gemini API' },
+  { value: 'vertex', label: 'Vertex - Google Cloud Vertex AI' },
   { value: 'openai', label: 'OpenAI - Images API' },
   { value: 'claude', label: 'Claude - Anthropic 兼容' },
 ];
@@ -124,7 +134,7 @@ export default function SettingsDialog() {
                   API 配置管理
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  配置你的 AI 图片生成 API，支持 Gemini、OpenAI、Claude 格式
+                  配置你的 AI 图片生成 API，支持 Gemini、Vertex、OpenAI、Claude 格式
                 </p>
               </div>
               <Button
@@ -221,6 +231,7 @@ export default function SettingsDialog() {
                             const v = e.target.value as ApiFormat;
                             const newInfo = FORMAT_INFO[v];
                             const defaultModel = v === 'gemini' ? 'gemini-3-pro-image-preview'
+                              : v === 'vertex' ? 'gemini-2.5-flash-image'
                               : v === 'openai' ? 'gpt-image-1'
                               : 'claude-3-opus-20240229';
                             updateApiConfig(config.id, {
@@ -289,6 +300,7 @@ export default function SettingsDialog() {
                           placeholder={(() => {
                             const rf = resolveRequestFormat(config);
                             return rf === 'gemini' ? '/models/{model}:generateContent?key={apiKey}'
+                              : rf === 'vertex' ? '/{model}:generateContent'
                               : rf === 'openai' ? '/images/generations'
                               : '/messages';
                           })()}
@@ -302,7 +314,7 @@ export default function SettingsDialog() {
                           if (rf !== config.format) {
                             return (
                               <p className="text-[9px] mt-1.5 px-2 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-                                检测到模型 <span className="font-mono font-medium">{config.model}</span> 为 <span className="font-medium">{rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'}</span> 格式，请求体将自动使用 {rf === 'gemini' ? 'Gemini' : rf === 'openai' ? 'OpenAI' : 'Claude'} 格式构建
+                                检测到模型 <span className="font-mono font-medium">{config.model}</span> 为 <span className="font-medium">{rf === 'gemini' ? 'Gemini' : rf === 'vertex' ? 'Vertex' : rf === 'openai' ? 'OpenAI' : 'Claude'}</span> 格式，请求体将自动使用 {rf === 'gemini' ? 'Gemini' : rf === 'vertex' ? 'Vertex' : rf === 'openai' ? 'OpenAI' : 'Claude'} 格式构建
                               </p>
                             );
                           }
@@ -323,6 +335,7 @@ export default function SettingsDialog() {
                             onChange={(e) => updateApiConfig(config.id, { apiKey: e.target.value })}
                             placeholder={
                               config.format === 'gemini' ? 'AIza...' :
+                              config.format === 'vertex' ? 'ya29.... (OAuth Access Token)' :
                               config.format === 'openai' ? 'sk-...' :
                               'sk-ant-...'
                             }
@@ -360,6 +373,7 @@ export default function SettingsDialog() {
                             onChange={(e) => updateApiConfig(config.id, { model: e.target.value })}
                             placeholder={
                               config.format === 'gemini' ? 'gemini-3-pro-image-preview' :
+                              config.format === 'vertex' ? 'gemini-2.5-flash-image' :
                               config.format === 'openai' ? 'gpt-image-1' :
                               'claude-3-opus-20240229'
                             }
@@ -402,10 +416,10 @@ export default function SettingsDialog() {
                             </div>
                           </div>
                         ) : (
-                          (config.format === 'gemini' || config.format === 'openai') && (
+                          (config.format === 'gemini' || config.format === 'vertex' || config.format === 'openai') && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               <span className="text-[9px] text-muted-foreground/50 mr-1 leading-6">推荐：</span>
-                              {(config.format === 'gemini' ? GEMINI_MODELS : OPENAI_MODELS).map((m) => (
+                              {((config.format === 'gemini' || config.format === 'vertex') ? GEMINI_MODELS : OPENAI_MODELS).map((m) => (
                                 <button
                                   key={m.value}
                                   type="button"

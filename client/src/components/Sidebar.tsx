@@ -103,6 +103,7 @@ export default function Sidebar() {
                         "text-[10px] px-1.5 py-0.5 rounded font-mono",
                         config.format === 'openai' && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
                         config.format === 'gemini' && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                        config.format === 'vertex' && "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
                         config.format === 'claude' && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
                       )}>
                         {config.format.toUpperCase()}

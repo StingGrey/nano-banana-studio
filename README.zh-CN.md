@@ -11,7 +11,7 @@
 
 它可以让你在同一个界面里：
 
-- 配置多个 API（Gemini / OpenAI / Claude 兼容）
+- 配置多个 API（Gemini / Vertex / OpenAI / Claude 兼容）
 - 动态拉取可用模型
 - 调节模型参数（比例、尺寸、质量等）
 - 生成并管理图片画廊（收藏、删除、历史回看）

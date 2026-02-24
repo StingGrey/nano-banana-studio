@@ -479,10 +479,11 @@ export default function ParamsPanel() {
                 <span className={cn(
                   "text-[9px] px-1.5 py-0.5 rounded font-mono font-medium",
                   format === 'gemini' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                  format === 'vertex' ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" :
                   format === 'openai' ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
                   "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                 )}>
-                  {format === 'gemini' ? 'Gemini' : format === 'openai' ? 'OpenAI' : 'Claude'}
+                  {format === 'gemini' ? 'Gemini' : format === 'vertex' ? 'Vertex' : format === 'openai' ? 'OpenAI' : 'Claude'}
                 </span>
                 {format !== authFormat && (
                   <span className="text-[8px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-mono">
@@ -550,7 +551,7 @@ export default function ParamsPanel() {
                   <CollapsibleContent>
                     <div className="space-y-2 mt-3 pl-1">
                       <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                        {format === 'gemini'
+                        {(format === 'gemini' || format === 'vertex')
                           ? '自定义参数将合并到请求体。支持嵌套路径如 "generationConfig.temperature"'
                           : format === 'openai'
                           ? '自定义参数将直接添加到请求体顶层。值会自动尝试 JSON 解析。'

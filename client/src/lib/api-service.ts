@@ -17,6 +17,11 @@
  *   端点: POST /messages
  *   认证: x-api-key header + anthropic-version
  *   文档: https://docs.anthropic.com/en/docs/build-with-claude/vision
+ *
+ * Vertex AI Gemini API:
+ *   端点: POST /projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
+ *   认证: Authorization: Bearer {ACCESS_TOKEN}
+ *   文档: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
  */
 
 import type { ApiConfig, GenerationParams, ModelInfo } from './store';
@@ -264,6 +269,9 @@ function getHeaders(config: ApiConfig): Record<string, string> {
       headers['x-api-key'] = config.apiKey;
       headers['anthropic-version'] = '2023-06-01';
       break;
+    case 'vertex':
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+      break;
   }
 
   return headers;
@@ -292,6 +300,9 @@ function getEndpoint(config: ApiConfig, requestFormat: ApiConfig['format']): str
     case 'openai':
       return `${base}/images/generations`;
     case 'gemini':
+      if (config.format === 'vertex') {
+        return `${base}/${config.model || 'gemini-2.5-flash-image'}:generateContent`;
+      }
       return `${base}/models/${config.model || 'gemini-3-pro-image-preview'}:generateContent?key=${config.apiKey}`;
     case 'claude':
       return `${base}/messages`;
@@ -324,7 +335,8 @@ function extractImages(data: any, format: ApiConfig['format']): { images: string
         return { images, revisedPrompt };
       }
 
-      case 'gemini': {
+      case 'gemini':
+      case 'vertex': {
         const images: string[] = [];
         if (data.candidates) {
           for (const candidate of data.candidates) {
@@ -377,6 +389,7 @@ export async function generateImage(
         body = buildOpenAIRequest(params, config);
         break;
       case 'gemini':
+      case 'vertex':
         body = buildGeminiRequest(params, config);
         break;
       case 'claude':
@@ -447,6 +460,9 @@ export async function testConnection(config: ApiConfig): Promise<{ success: bool
         break;
       case 'claude':
         testUrl = `${base}/messages`;
+        break;
+      case 'vertex':
+        testUrl = `${base}`;
         break;
       default:
         testUrl = base;
@@ -536,6 +552,23 @@ export async function fetchModels(config: ApiConfig): Promise<{ success: boolean
         return { success: true, models };
       }
 
+
+      case 'vertex': {
+        // Vertex: GET /publishers/google/models
+        const response = await fetch(`${base}`, { headers });
+        if (!response.ok) {
+          return { success: false, models: [], error: `HTTP ${response.status}` };
+        }
+        const data = await response.json();
+        const models: ModelInfo[] = (data.publisherModels || data.models || []).map((m: any) => ({
+          id: (m.name || '').split('/').pop() || m.versionId || 'unknown-model',
+          name: m.displayName || (m.name || '').split('/').pop() || 'Unknown',
+          desc: m.description?.slice(0, 60) || undefined,
+          source: 'api' as const,
+        }));
+        return { success: true, models };
+      }
+
       default:
         return { success: false, models: [], error: '不支持的 API 格式' };
     }
@@ -560,6 +593,7 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
       body = buildOpenAIRequest(params, config);
       break;
     case 'gemini':
+    case 'vertex':
       body = buildGeminiRequest(params, config);
       break;
     case 'claude':
@@ -569,7 +603,7 @@ export function previewRequest(params: GenerationParams, config: ApiConfig): {
 
   const headers = getHeaders(config);
   const safeHeaders = { ...headers };
-  if (safeHeaders['Authorization']) safeHeaders['Authorization'] = 'Bearer sk-***';
+  if (safeHeaders['Authorization']) safeHeaders['Authorization'] = 'Bearer ***';
   if (safeHeaders['x-goog-api-key']) safeHeaders['x-goog-api-key'] = '***';
   if (safeHeaders['x-api-key']) safeHeaders['x-api-key'] = '***';
 
